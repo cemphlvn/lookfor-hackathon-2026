@@ -1,3 +1,6 @@
 [submodule "plugin"]
 	path = plugin
 	url = https://github.com/cemphlvn/meta-agentic-loop.git
+[submodule "demo-brand"]
+	path = demo-brand
+	url = https://github.com/cemphlvn/lookfor-demo-brand.git
