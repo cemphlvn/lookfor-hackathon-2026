@@ -11,3 +11,91 @@ scope: SYSTEM
 truth: "System tickets improve plugin, plugin improves all projects including this one"
 shape_shift: true
 ---
+
+---
+timestamp: 2026-02-07T15:30:00Z
+scope: HACKATHON
+truth: "Step 2 (meta-MAS generator) BEFORE Step 1 (actual MAS) — abstraction forces correctness"
+shape_shift: true
+---
+
+---
+timestamp: 2026-02-07T15:30:00Z
+scope: HACKATHON
+truth: "MAS requirements: 1) Session start 2) Continuous memory 3) Observable traces 4) Escalation stops auto-reply"
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:30:00Z
+scope: META-AGENTIC-LOOP
+truth: "MAS pattern is generalizable to plugin: workflow-parser → intent-extractor → agent-generator → runtime"
+shape_shift: true
+---
+
+---
+timestamp: 2026-02-07T15:30:00Z
+scope: INTENT_CLASSIFICATION
+truth: "Priority-based scoring: score by keyword match + weight by word count + tiebreak by priority. Longer phrases = more specific = higher weight."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:32:00Z
+scope: ESCALATION
+truth: "Escalation detection works independently of intent classification. Direct keyword patterns (human, manager, real person) override all routing."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:32:00Z
+scope: API_INTEGRATION
+truth: "Tool client must handle both error and message fields in response. Non-2xx responses need explicit handling with try-parse."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:32:00Z
+scope: TESTING
+truth: "Mock server enables demo without backend dependency. Pattern: USE_MOCK_API=true switches to local mock."
+shape_shift: true
+---
+
+---
+timestamp: 2026-02-07T15:45:00Z
+scope: MONITORING
+truth: "All 19 tests pass. All 13 evaluation scenarios pass (100% intent/tool/escalation/response accuracy). Docker builds OK. TypeScript compiles clean."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:45:00Z
+scope: GAPS
+truth: "Tool calls timing out to real API (27s latency on first call). Need USE_MOCK_API for demo or ensure live API connectivity."
+shape_shift: true
+---
+
+---
+timestamp: 2026-02-07T15:45:00Z
+scope: DEMO_READY
+truth: "Demo script exists (scripts/demo.ts). API server ready (src/api/server.ts). Evaluation script comprehensive. Docker image built (482MB)."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:53:00Z
+scope: FINAL_STATUS
+truth: "19/19 tests pass. TypeScript compiles. Docker built. 13/13 eval scenarios pass. All 4 hackathon requirements implemented. Ready for demo."
+shape_shift: false
+---
+
+---
+timestamp: 2026-02-07T15:53:00Z
+scope: REQUIREMENTS_CHECKLIST
+truth: |
+  REQ1 Session Start: DONE (MASRuntime.startSession with customer details)
+  REQ2 Continuous Memory: DONE (MemoryStore tracks messages, entities, context)
+  REQ3 Observable Actions: DONE (Tracer logs tools called, inputs/outputs, actions)
+  REQ4 Escalation: DONE (Orchestrator detects keywords, stops auto-reply, builds summary)
+shape_shift: false
+---

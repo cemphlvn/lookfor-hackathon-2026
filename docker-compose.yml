@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  mas:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - API_URL=${API_URL:-http://localhost:3000}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - BRAND_NAME=${BRAND_NAME:-demo-brand}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
