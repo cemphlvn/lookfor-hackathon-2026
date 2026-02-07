@@ -1,100 +1,145 @@
-# hackaton_lookfor — Meta-Automata Factory
+# hackaton_lookfor — Self-Referential Meta-Automata
 
 > **逆水行舟，不进则退** — Like rowing upstream: no advance is to drop back
 >
-> This is the FACTORY level. It spawns demo-brand projects.
-> Each brand uses the plugin. The plugin evolves through use.
+> This project is BOTH factory AND instance.
+> It spawns brands. It uses the plugin. It improves the plugin.
+> The system builds itself while building what it builds.
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                         META-AUTOMATA HIERARCHY                               ║
+║                    SELF-REFERENTIAL AUTOMATA                                  ║
 ║                                                                               ║
-║   hackaton_lookfor/           ← YOU ARE HERE (Factory)                        ║
-║   ├── cortex                  ← Factory CLI: ./cortex init <brand>            ║
-║   ├── demo-brand/             ← First spawned brand                           ║
-║   │   └── plugin/             ← meta-agentic-loop (writable)                  ║
-║   ├── [brand-2]/              ← Future brands                                 ║
-║   └── [brand-n]/              ← Each isolated, each using plugin              ║
+║   hackaton_lookfor/           ← Factory + Instance (BOTH)                     ║
+║   ├── plugin/                 ← meta-agentic-loop (THIS COPY IS CANONICAL)    ║
+║   ├── cortex                  ← ./cortex init <brand>                         ║
+║   ├── scrum/SYSTEM_TICKETS.md ← Plugin improvement tickets                    ║
+║   ├── demo-brand/             ← Spawned brand (has own plugin/)               ║
+║   └── [brand-n]/              ← More brands                                   ║
 ║                                                                               ║
-║   meta-agentic-loop evolves through ALL brand projects                        ║
+║   Work here = Build brands + Improve plugin                                   ║
+║   System tickets → plugin/ → git push → ALL projects updated                  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## AUTOMATA LEVELS
+## DUAL PURPOSE
 
-```
-L0: meta-agentic-loop (GitHub)     ← The immortal pattern
-    ↓ submodule
-L1: hackaton_lookfor (THIS)        ← Factory that spawns brands
-    ↓ ./cortex init
-L2: demo-brand, brand-2, ...       ← Individual brand projects
-    ↓ plugin/
-L3: plugin/ in each brand          ← Writable instance of L0
-    ↓ git push
-L0: meta-agentic-loop              ← Improvements flow back
+### 1. FACTORY — Spawn Brands
+```bash
+./cortex init <brand-name>    # Creates new brand project
+cd <brand-name> && claude     # Work in that brand
 ```
 
-**The loop is complete.** L3 feeds back to L0.
+### 2. INSTANCE — Improve System
+```bash
+# Work on system tickets
+cat scrum/SYSTEM_TICKETS.md   # See what needs doing
+
+# Improve plugin directly
+cd plugin
+# ... make changes ...
+git add . && git commit -m "SYS-001: Improve X"
+git push origin main
+
+# Update this project's reference
+cd ..
+git add plugin && git commit -m "Update plugin: SYS-001"
+```
+
+---
+
+## SYSTEM TICKETS
+
+Active tickets in `scrum/SYSTEM_TICKETS.md`:
+
+| ID | Title | Scope |
+|----|-------|-------|
+| SYS-001 | Ralph loop testing | plugin/hooks |
+| SYS-002 | Cortex command completion | plugin/scripts |
+| SYS-003 | Skill loading from plugin | plugin/skills |
+
+**Workflow:**
+```
+Pick ticket → Work in plugin/ → Test → Commit → Push → Update submodule
+```
+
+---
+
+## AUTOMATA HIERARCHY
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ L0: meta-agentic-loop (GitHub)                                               │
+│     The immortal pattern. Source of truth.                                   │
+│         ↑ git push                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L1: hackaton_lookfor/plugin/ (THIS)                                          │
+│     Canonical working copy. System tickets addressed here.                   │
+│         ↓ ./cortex init                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L2: demo-brand/, brand-2/, ...                                               │
+│     Spawned brands. Each has own plugin/ copy.                               │
+│         ↓ brand work                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L3: Brand-specific improvements                                              │
+│     Discovered while using brands.                                           │
+│         ↓ bubble up                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L1: hackaton_lookfor/plugin/                                                 │
+│     Improvements consolidated here.                                          │
+│         ↑ git push                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L0: meta-agentic-loop (GitHub)                                               │
+│     Loop complete. All instances get update.                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## COMMANDS
 
-### Factory Commands (this level)
+### Cortex (Cognitive Ontology)
 ```bash
-./cortex                    # Show command ontology
-./cortex init <brand>       # Spawn new brand project
-./cortex status             # Status of all brands
+./cortex                    # Command tree (L1-L6)
+./cortex init <brand>       # Spawn new brand
+./cortex status             # All brands status
+./cortex loop               # Continue the loop
 ```
 
-### Enter a Brand
-```bash
-cd demo-brand               # Enter first brand
-./cortex                    # Brand-level commands
-claude                      # Start Claude Code session
+### Claude Code Skills
+```
+/loop                       # Loop state
+/playground                 # Observability dashboard
+/agents                     # Agent hierarchy
+/orchestrate                # Orchestration cycle
 ```
 
-### Cross-Brand Plugin Development
+### System Development
 ```bash
-# Make change in any brand's plugin/
-cd demo-brand/plugin
-# ... make improvements ...
-git add . && git commit -m "Improve X"
-git push origin main
-
-# Other brands get update:
-cd ../brand-2/plugin
-git pull origin main
+cat scrum/SYSTEM_TICKETS.md # View tickets
+cd plugin && git status     # Check plugin state
+./cortex health             # System health
 ```
 
 ---
 
-## SPAWNED BRANDS
+## CRITICAL FILES
 
-| Brand | Status | Plugin Version |
-|-------|--------|----------------|
-| demo-brand | Active | Latest |
-| (spawn more with `./cortex init <name>`) | | |
+```yaml
+factory:
+  - cortex                       # Brand spawner
+  - scrum/SYSTEM_TICKETS.md      # Plugin improvement queue
 
----
+instance:
+  - .claude/settings.json        # Hooks configured
+  - .remembrance                 # Truth log
+  - plugin/                      # THE working copy
 
-## PHILOSOPHY
-
-### Self-Referential Automata
-- The factory uses the pattern it distributes
-- Each brand instance can improve the pattern
-- Improvements propagate to all instances
-- The system evolves through use
-
-### Cortical Hierarchy (L1-L6)
-```
-L1 Context    → What brand? What domain?
-L2/3 Associate → How do brands relate?
-L4 Observe    → What is each brand's state?
-L5 Act        → Spawn brands, develop plugin
-L6 Learn      → Accumulate cross-brand truths
+spawned_brands:
+  - demo-brand/                  # First brand
+  - (more via ./cortex init)
 ```
 
 ---
@@ -102,17 +147,27 @@ L6 Learn      → Accumulate cross-brand truths
 ## START
 
 ```bash
-# See what's here
-ls -la
+# Option 1: Work on system tickets (improve plugin)
+cat scrum/SYSTEM_TICKETS.md
+cd plugin
+# ... address ticket ...
 
-# Show command tree
-./cortex
+# Option 2: Spawn and work in a brand
+./cortex init my-brand
+cd my-brand && claude
 
-# Enter first brand and start working
-cd demo-brand
-claude
+# Option 3: Work in existing brand
+cd demo-brand && claude
 ```
 
 ---
 
-*Factory level. Type `./cortex init <name>` to spawn brands. 不进则退*
+## SPAWNED BRANDS
+
+| Brand | Status | Purpose |
+|-------|--------|---------|
+| demo-brand | Active | First test brand |
+
+---
+
+*Self-referential. Factory + Instance. System builds itself. 不进则退*

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://code.claude.com/schemas/settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash plugin/hooks/scripts/session-start.sh 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash plugin/hooks/scripts/ralph-stop-hook.sh",
+            "timeout": 5,
+            "description": "Ralph: Block exit if loop active"
+          },
+          {
+            "type": "command",
+            "command": "bash plugin/hooks/scripts/evaluate-session.sh 2>/dev/null || true",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "skills": {
+    "sources": [".claude/skills", "plugin/skills"]
+  },
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@context7/mcp-server"]
+    }
+  }
+}
