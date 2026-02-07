@@ -80,10 +80,10 @@ const INTENT_CATEGORIES: Record<string, IntentConfig> = {
     suggestedWorkflow: 'order-cancellation',
     priority: 6
   },
-  // Order status
+  // Order status (WISMO - Where Is My Order)
   ORDER_STATUS: {
-    keywords: ['where is my order', 'order status', 'status of order', 'tracking', 'shipped', 'delivery status', 'when arrive', 'what is the status', 'order tracking', 'track my order'],
-    suggestedWorkflow: 'order-tracking',
+    keywords: ['where is my order', 'order status', 'status of order', 'tracking', 'shipped', 'delivery status', 'when arrive', 'what is the status', 'order tracking', 'track my order', 'in transit', 'any update on my order', 'order shows', 'when will my order', 'has shipped', 'not delivered', 'still waiting for order', 'delivery date', 'estimated delivery'],
+    suggestedWorkflow: 'order-status',
     priority: 3
   },
   // Address
@@ -167,19 +167,71 @@ export function classifyMessage(message: string): IntentClassification {
 }
 
 /**
+ * Single-word triggers that strongly indicate intent (partial match)
+ */
+const WORD_TRIGGERS: Record<string, { category: string; weight: number }> = {
+  'cancel': { category: 'CANCEL_ORDER', weight: 1.5 },
+  'refund': { category: 'REFUND_REQUEST', weight: 2 },
+  'return': { category: 'RETURN_REQUEST', weight: 1.5 },
+  'tracking': { category: 'ORDER_STATUS', weight: 2 },
+  'track': { category: 'ORDER_STATUS', weight: 1.5 },
+  'shipped': { category: 'ORDER_STATUS', weight: 1.5 },
+  'delivery': { category: 'ORDER_STATUS', weight: 1.5 },
+  'delivered': { category: 'ORDER_STATUS', weight: 1.5 },
+  'arrived': { category: 'ORDER_STATUS', weight: 1 },
+  'subscription': { category: 'SUBSCRIPTION_INQUIRY', weight: 1.5 },
+  'unsubscribe': { category: 'SUBSCRIPTION_CANCEL', weight: 2 },
+  'pause': { category: 'SUBSCRIPTION_PAUSE', weight: 2 },
+  'skip': { category: 'SUBSCRIPTION_PAUSE', weight: 1.5 },
+  'address': { category: 'SHIPPING_ADDRESS', weight: 1.5 },
+  'human': { category: 'ESCALATION_REQUEST', weight: 3 },
+  'manager': { category: 'ESCALATION_REQUEST', weight: 3 },
+  'supervisor': { category: 'ESCALATION_REQUEST', weight: 3 },
+  'agent': { category: 'ESCALATION_REQUEST', weight: 2 },
+  'person': { category: 'ESCALATION_REQUEST', weight: 1.5 },
+};
+
+/**
  * Internal classification with priority-based scoring
+ * Combines exact phrase matching with single-word trigger detection
  */
 function classifyText(text: string): IntentClassification {
   const scores: Array<{ category: string; score: number; priority: number }> = [];
+  const words = text.split(/\s+/).map(w => w.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
   for (const [category, config] of Object.entries(INTENT_CATEGORIES)) {
     let score = 0;
+
+    // 1. Exact phrase matches (highest value)
     for (const keyword of config.keywords) {
       if (text.includes(keyword.toLowerCase())) {
         // Longer keywords are more specific, give them more weight
-        score += keyword.split(' ').length;
+        score += keyword.split(' ').length * 2;
       }
     }
+
+    // 2. Single-word trigger matches (ALWAYS check - these are strong signals)
+    for (const word of words) {
+      const trigger = WORD_TRIGGERS[word];
+      if (trigger && trigger.category === category) {
+        score += trigger.weight;
+      }
+    }
+
+    // 3. Partial word presence in keywords (only if no strong match yet)
+    // Lower weight to avoid noise from common words like "order"
+    if (score < 1) {
+      for (const keyword of config.keywords) {
+        const keywordWords = keyword.toLowerCase().split(' ');
+        for (const word of words) {
+          // Only match meaningful words, exclude very common ones
+          if (word.length >= 5 && keywordWords.includes(word) && !['order', 'about', 'where', 'which'].includes(word)) {
+            score += 0.2;
+          }
+        }
+      }
+    }
+
     scores.push({ category, score, priority: config.priority });
   }
 
@@ -195,13 +247,15 @@ function classifyText(text: string): IntentClassification {
     .filter(s => s.score > 0)
     .map(s => s.category);
 
-  const config = INTENT_CATEGORIES[primary];
-  const maxScore = config.keywords.reduce((sum, k) => sum + k.split(' ').length, 0);
+  // Calculate confidence based on score relative to reasonable max
+  const topScore = scores[0].score;
+  // Normalize: 3+ score = high confidence, 1.5 = medium, <1 = low
+  const normalizedConfidence = Math.min(1, topScore / 3);
 
   return {
     primary,
     secondary,
-    confidence: maxScore > 0 ? scores[0].score / maxScore : 0,
+    confidence: normalizedConfidence,
     extractedEntities: extractEntities(text)
   };
 }

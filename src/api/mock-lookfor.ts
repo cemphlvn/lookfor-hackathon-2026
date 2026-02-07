@@ -23,23 +23,39 @@ interface MockSubscription {
   email: string;
 }
 
-// Mock data store
+// Mock data store - supports both NP-prefixed and simple numeric order IDs
 const mockOrders: MockOrder[] = [
   {
     id: 'gid://shopify/Order/1001',
+    name: '#1001',
+    createdAt: '2026-02-01T10:00:00Z',
+    status: 'DELIVERED',
+    trackingUrl: 'https://tracking.example.com/abc123',
+    items: [{ title: 'NATPAT Sleep Patches', quantity: 2 }]
+  },
+  {
+    id: 'gid://shopify/Order/1002',
+    name: '#1002',
+    createdAt: '2026-02-05T14:30:00Z',
+    status: 'FULFILLED',
+    trackingUrl: 'https://tracking.example.com/xyz789',
+    items: [{ title: 'NATPAT Calm Patches', quantity: 1 }]
+  },
+  {
+    id: 'gid://shopify/Order/1003',
+    name: '#1003',
+    createdAt: '2026-02-07T09:00:00Z',
+    status: 'UNFULFILLED',
+    trackingUrl: null,
+    items: [{ title: 'NATPAT Focus Patches', quantity: 3 }]
+  },
+  {
+    id: 'gid://shopify/Order/NP1234567',
     name: '#NP1234567',
     createdAt: '2026-02-01T10:00:00Z',
     status: 'FULFILLED',
     trackingUrl: 'https://track.ups.com/123456',
     items: [{ title: 'NATPAT Sleep Patches', quantity: 2 }]
-  },
-  {
-    id: 'gid://shopify/Order/1002',
-    name: '#NP1234568',
-    createdAt: '2026-02-05T14:30:00Z',
-    status: 'IN_TRANSIT',
-    trackingUrl: 'https://track.usps.com/789012',
-    items: [{ title: 'NATPAT Calm Patches', quantity: 1 }]
   }
 ];
 
@@ -68,12 +84,18 @@ const handlers: Record<string, (params: Record<string, unknown>) => { success: b
   },
 
   '/hackhaton/get_order_details': (params) => {
-    const orderId = params.orderId as string;
-    const order = mockOrders.find(o => o.name.includes(orderId.replace('#', '')));
+    const orderId = (params.orderId as string || '').replace('#', '').toUpperCase();
+    // Match by name (without #), id suffix, or exact name match
+    const order = mockOrders.find(o =>
+      o.name.replace('#', '').toUpperCase() === orderId ||
+      o.id.toUpperCase().includes(orderId) ||
+      o.name === params.orderId
+    );
     if (order) {
       return { success: true, data: order };
     }
-    return { success: false, error: 'Order not found' };
+    console.log(`[MockAPI] Order not found: ${orderId} (available: ${mockOrders.map(o => o.name).join(', ')})`);
+    return { success: false, error: `Order ${params.orderId} not found` };
   },
 
   '/hackhaton/cancel_order': (params) => {

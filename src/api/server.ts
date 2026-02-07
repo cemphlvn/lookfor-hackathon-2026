@@ -15,6 +15,7 @@ import { MASRuntime, SessionStartParams } from '../mas/runtime';
 import { MASConfig } from '../meta/agent-generator';
 import { buildDefaultMAS } from '../meta/mas-builder';
 import { buildNATPATMAS } from '../brands/natpat';
+import { ErrorHandler, MASError, ValidationError } from '../mas/errors';
 
 // Simple HTTP handler types
 type Handler = (req: Request) => Promise<Response>;
@@ -138,6 +139,34 @@ export class APIServer {
       }
     });
 
+    // Delete single session
+    this.routes.push({
+      method: 'DELETE',
+      pattern: /^\/session\/([^/]+)$/,
+      handler: async (req) => {
+        const url = new URL(req.url);
+        const match = url.pathname.match(/^\/session\/([^/]+)$/);
+        const sessionId = match?.[1];
+
+        if (!sessionId) {
+          return this.json({ success: false, error: 'Session ID required' }, 400);
+        }
+
+        this.runtime.deleteSession(sessionId);
+        return this.json({ success: true, deleted: sessionId });
+      }
+    });
+
+    // Clear all sessions
+    this.routes.push({
+      method: 'POST',
+      pattern: /^\/sessions\/clear$/,
+      handler: async () => {
+        this.runtime.clearAllSessions();
+        return this.json({ success: true, message: 'All sessions cleared' });
+      }
+    });
+
     // Get MAS config
     this.routes.push({
       method: 'GET',
@@ -159,11 +188,19 @@ export class APIServer {
         try {
           return await route.handler(req);
         } catch (error) {
-          console.error('[API] Error:', error);
-          return this.json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Internal server error'
-          }, 500);
+          ErrorHandler.log(error, { url: url.pathname, method: req.method });
+
+          // Use typed error response
+          const response = ErrorHandler.toAPIResponse(error);
+
+          // Determine status code based on error type
+          let status = 500;
+          if (error instanceof MASError) {
+            if (error.code.startsWith('E1')) status = 404; // Session errors
+            if (error.code.startsWith('E5')) status = 400; // Validation errors
+          }
+
+          return this.json(response, status);
         }
       }
     }
@@ -222,6 +259,19 @@ export async function startServer(port: number = 3001, brandName: string = 'NATP
       }
     }
 
+    // Serve presentation
+    if (reqUrl === '/presentation' || reqUrl.startsWith('/presentation.html')) {
+      const presentationPath = path.join(process.cwd(), 'public', 'presentation.html');
+      try {
+        const content = fs.readFileSync(presentationPath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(content);
+        return;
+      } catch {
+        // Fall through to API
+      }
+    }
+
     const url = `http://localhost:${port}${reqUrl}`;
     const body = await new Promise<string>((resolve) => {
       let data = '';
@@ -270,5 +320,15 @@ const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
 if (isMainModule) {
   const port = parseInt(process.env.PORT || '3001');
   const brand = process.env.BRAND_NAME || 'NATPAT';
+
+  // Start mock API server if USE_MOCK_API is set
+  if (process.env.USE_MOCK_API === 'true') {
+    import('./mock-lookfor').then(({ createMockServer }) => {
+      const mockPort = parseInt(process.env.MOCK_API_PORT || '3002');
+      createMockServer(mockPort);
+      console.log(`[MAS] Mock API enabled on port ${mockPort}`);
+    });
+  }
+
   startServer(port, brand);
 }

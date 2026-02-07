@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lookfor MAS Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { background: #0f0f17; color: #e0e0e0; }
+        .glass { background: rgba(30, 30, 45, 0.8); border: 1px solid rgba(255,255,255,0.1); }
+        .glass-dark { background: rgba(20, 20, 30, 0.9); border: 1px solid rgba(255,255,255,0.05); }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px currentColor; } 50% { box-shadow: 0 0 15px currentColor; } }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .slide-in { animation: slide-in 0.3s ease-out; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .error-badge { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .success-badge { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+        .warning-badge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+<div id="app" class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-4 p-4 glass rounded-xl">
+        <div class="flex items-center gap-4">
+            <h1 class="text-2xl font-bold text-indigo-400">Lookfor MAS Dashboard</h1>
+            <span class="text-sm text-gray-500">logicsticks</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- View Toggle -->
+            <div class="flex bg-gray-800 rounded-lg p-1">
+                <button @click="currentView = 'chat'"
+                        :class="currentView === 'chat' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'"
+                        class="px-3 py-1 rounded text-sm transition">Chat</button>
+                <button @click="currentView = 'architecture'"
+                        :class="currentView === 'architecture' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'"
+                        class="px-3 py-1 rounded text-sm transition">Architecture</button>
+                <button @click="currentView = 'errors'"
+                        :class="currentView === 'errors' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'"
+                        class="px-3 py-1 rounded text-sm transition">
+                    Errors <span v-if="totalErrors > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-red-500 rounded-full">{{ totalErrors }}</span>
+                </button>
+            </div>
+            <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" :class="connected ? 'bg-green-500 pulse-glow' : 'bg-red-500'"></span>
+                <span class="text-sm">{{ connected ? 'Connected' : 'Disconnected' }}</span>
+            </span>
+            <button @click="resetAll" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition">
+                Reset All
+            </button>
+        </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="grid grid-cols-6 gap-4 mb-4">
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-white">{{ sessions.length }}</div>
+            <div class="text-xs text-gray-400">Sessions</div>
+        </div>
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-green-400">{{ totalToolSuccess }}</div>
+            <div class="text-xs text-gray-400">Tool Success</div>
+        </div>
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-red-400">{{ totalToolFails }}</div>
+            <div class="text-xs text-gray-400">Tool Fails</div>
+        </div>
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-amber-400">{{ escalatedCount }}</div>
+            <div class="text-xs text-gray-400">Escalated</div>
+        </div>
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-blue-400">{{ summary?.agents?.length || 0 }}</div>
+            <div class="text-xs text-gray-400">Agents Used</div>
+        </div>
+        <div class="glass-dark rounded-lg p-3 text-center">
+            <div class="text-2xl font-bold text-purple-400">{{ summary?.duration ? Math.round(summary.duration/1000) + 's' : '0s' }}</div>
+            <div class="text-xs text-gray-400">Duration</div>
+        </div>
+    </div>
+
+    <!-- Chat View -->
+    <div v-if="currentView === 'chat'" class="grid grid-cols-12 gap-4">
+        <!-- Sessions Panel -->
+        <div class="col-span-3 glass rounded-xl p-4 overflow-hidden flex flex-col" style="height: 65vh;">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-semibold">Sessions</h2>
+                <button @click="newSession" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-sm">+ New</button>
+            </div>
+            <div v-if="sessions.length === 0" class="text-gray-500 text-center py-8">No active sessions</div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin">
+                <div v-for="s in sessions" :key="s.id"
+                     @click="selectSession(s.id)"
+                     class="p-3 rounded-lg mb-2 cursor-pointer transition"
+                     :class="currentSessionId === s.id ? 'bg-indigo-600/30 border border-indigo-500' : 'bg-gray-800/50 hover:bg-gray-700/50'">
+                    <div class="flex items-center justify-between">
+                        <div class="font-medium truncate flex-1">{{ s.customer }}</div>
+                        <span v-if="s.status === 'escalated'" class="text-xs px-2 py-0.5 bg-red-500/30 text-red-300 rounded">ESC</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-gray-400 mt-1">
+                        <span>{{ s.messageCount }} msgs</span>
+                        <span :class="s.status === 'active' ? 'text-green-400' : 'text-amber-400'">{{ s.status }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="col-span-5 glass rounded-xl flex flex-col" style="height: 65vh;">
+            <div class="p-4 border-b border-gray-700">
+                <div v-if="currentSessionId">
+                    <div class="font-medium">{{ currentCustomer }}</div>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <span>Agent:</span>
+                        <span class="text-indigo-400 font-medium">{{ currentAgent || 'routing...' }}</span>
+                        <span v-if="summary?.escalated" class="text-red-400 ml-2">[ESCALATED]</span>
+                    </div>
+                </div>
+                <div v-else class="text-gray-500">Select a session to view conversation</div>
+            </div>
+
+            <div ref="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                <div v-for="(msg, i) in messages" :key="i"
+                     class="flex slide-in" :class="msg.role === 'customer' ? 'justify-end' : 'justify-start'">
+                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl text-sm"
+                         :class="msg.role === 'customer' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-100'">
+                        {{ msg.content }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex gap-2">
+                    <input v-model="newMessage" @keyup.enter="sendMessage"
+                           placeholder="Type customer message..."
+                           :disabled="sending"
+                           class="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                    <button @click="sendMessage" :disabled="!newMessage.trim() || sending"
+                            class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition">
+                        {{ sending ? '...' : 'Send' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trace Panel -->
+        <div class="col-span-4 glass rounded-xl flex flex-col" style="height: 65vh;">
+            <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h2 class="font-semibold">Trace Timeline</h2>
+                <div v-if="summary" class="flex gap-3 text-xs">
+                    <span><span class="text-white font-bold">{{ summary.messageCount }}</span> Msgs</span>
+                    <span><span class="text-green-400 font-bold">{{ summary.successfulToolCalls }}</span> OK</span>
+                    <span><span class="text-red-400 font-bold">{{ summary.failedToolCalls }}</span> Err</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-2 text-sm scrollbar-thin">
+                <div v-if="!currentSessionId" class="text-gray-500 text-center py-8">Select a session to view trace</div>
+                <div v-for="(e, i) in trace" :key="i"
+                     class="p-3 rounded-lg transition hover:bg-gray-700/30"
+                     :class="e.type === 'error' ? 'bg-red-900/20 border border-red-500/30' : 'bg-gray-800/50'">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium uppercase text-xs px-2 py-0.5 rounded"
+                              :class="{
+                                  'bg-blue-500/20 text-blue-400': e.type === 'routing',
+                                  'bg-amber-500/20 text-amber-400': e.type === 'tool_call',
+                                  'bg-red-500/20 text-red-400': e.type === 'escalation' || e.type === 'error',
+                                  'bg-gray-500/20 text-gray-400': e.type === 'message'
+                              }">{{ e.type.replace('_', ' ') }}</span>
+                        <span class="text-xs text-gray-500">{{ formatTime(e.timestamp) }}</span>
+                    </div>
+                    <div class="text-gray-300 text-xs font-mono">
+                        <template v-if="e.type === 'routing'">
+                            <span class="text-gray-400">{{ e.data.from }}</span> → <span class="text-white font-semibold">{{ e.data.to }}</span>
+                            <div class="text-gray-500 mt-1">({{ e.data.reason }})</div>
+                        </template>
+                        <template v-if="e.type === 'tool_call'">
+                            <div class="flex items-center gap-2">
+                                <span class="text-white">{{ formatTool(e.data.tool) }}</span>
+                                <span v-if="e.data.success" class="success-badge px-1.5 py-0.5 rounded text-xs">OK</span>
+                                <span v-else class="error-badge px-1.5 py-0.5 rounded text-xs">FAIL</span>
+                            </div>
+                            <div v-if="!e.data.success" class="text-red-400 mt-1">{{ e.data.error }}</div>
+                        </template>
+                        <template v-if="e.type === 'message'">
+                            <span class="text-gray-400">{{ e.data.role }}:</span> "{{ e.data.content?.substring(0, 60) }}{{ e.data.content?.length > 60 ? '...' : '' }}"
+                        </template>
+                        <template v-if="e.type === 'escalation'">
+                            <div class="text-red-300 font-semibold">{{ e.data.reason }}</div>
+                        </template>
+                        <template v-if="e.type === 'error'">
+                            <div class="text-red-300">{{ e.data.error }}</div>
+                            <div v-if="e.data.suggestion" class="text-yellow-400/70 mt-1 text-xs">Suggestion: {{ e.data.suggestion }}</div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture View -->
+    <div v-if="currentView === 'architecture'" class="grid grid-cols-12 gap-4">
+        <!-- Agent Flow -->
+        <div class="col-span-8 glass rounded-xl p-6" style="height: 65vh;">
+            <h2 class="font-semibold mb-4 text-lg">MAS Architecture</h2>
+            <div class="grid grid-cols-3 gap-4 h-full">
+                <!-- Input Layer -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">Input Layer</div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-indigo-400 font-semibold mb-2">API Server</div>
+                        <div class="text-xs text-gray-400">POST /session/start<br/>POST /session/:id/message</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-indigo-400 font-semibold mb-2">Intent Extractor</div>
+                        <div class="text-xs text-gray-400">13 Intent Categories<br/>Pattern Matching</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-indigo-400 font-semibold mb-2">Orchestrator</div>
+                        <div class="text-xs text-gray-400">Intent-based Routing<br/>Escalation Detection</div>
+                    </div>
+                </div>
+
+                <!-- Processing Layer -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">Agent Layer</div>
+                    <div v-for="agent in config?.orchestrator?.agents?.slice(0, 5)" :key="agent.id"
+                         class="glass-dark rounded-lg p-3 text-xs"
+                         :class="summary?.agents?.includes(agent.id) ? 'border border-green-500/50' : ''">
+                        <div class="text-green-400 font-semibold">{{ agent.name }}</div>
+                        <div class="text-gray-500 mt-1">{{ agent.tools?.length || 0 }} tools</div>
+                    </div>
+                    <div v-if="config?.orchestrator?.agents?.length > 5" class="text-xs text-gray-500 text-center">
+                        +{{ config.orchestrator.agents.length - 5 }} more agents
+                    </div>
+                </div>
+
+                <!-- Output Layer -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">Output Layer</div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-amber-400 font-semibold mb-2">Tool Client</div>
+                        <div class="text-xs text-gray-400">Shopify API (14 tools)<br/>Skio API (5 tools)</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-purple-400 font-semibold mb-2">Memory Store</div>
+                        <div class="text-xs text-gray-400">Session Persistence<br/>Entity Extraction</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-4">
+                        <div class="text-blue-400 font-semibold mb-2">Tracer</div>
+                        <div class="text-xs text-gray-400">Observable Events<br/>Timeline Export</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-4 border border-red-500/30">
+                        <div class="text-red-400 font-semibold mb-2">Escalation Handler</div>
+                        <div class="text-xs text-gray-400">Human Handoff<br/>Summary Generation</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Panel -->
+        <div class="col-span-4 glass rounded-xl p-4 overflow-hidden" style="height: 65vh;">
+            <h2 class="font-semibold mb-4">MAS Configuration</h2>
+            <div class="overflow-y-auto h-full scrollbar-thin text-xs">
+                <div v-if="config" class="space-y-4">
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Name</div>
+                        <div class="text-white font-semibold">{{ config.name }}</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Version</div>
+                        <div class="text-white">{{ config.version }}</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Orchestrator Type</div>
+                        <div class="text-white">{{ config.orchestrator?.type }}</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Agents ({{ config.orchestrator?.agents?.length }})</div>
+                        <div class="space-y-1 mt-2">
+                            <div v-for="agent in config.orchestrator?.agents" :key="agent.id"
+                                 class="flex justify-between items-center py-1 border-b border-gray-700 last:border-0">
+                                <span class="text-white">{{ agent.id }}</span>
+                                <span class="text-gray-500">{{ agent.tools?.length }} tools</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Fallback Agent</div>
+                        <div class="text-white">{{ config.orchestrator?.fallbackAgent }}</div>
+                    </div>
+                    <div class="glass-dark rounded-lg p-3">
+                        <div class="text-gray-400 mb-1">Tracing</div>
+                        <div class="text-white">{{ config.tracing?.enabled ? 'Enabled' : 'Disabled' }} ({{ config.tracing?.logLevel }})</div>
+                    </div>
+                </div>
+                <div v-else class="text-gray-500 text-center py-8">Loading config...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Errors View -->
+    <div v-if="currentView === 'errors'" class="grid grid-cols-12 gap-4">
+        <!-- Error List -->
+        <div class="col-span-8 glass rounded-xl p-4 overflow-hidden" style="height: 65vh;">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-semibold">Error Log</h2>
+                <div class="flex gap-2">
+                    <select v-model="errorFilter" class="bg-gray-800 border border-gray-600 rounded px-3 py-1 text-sm">
+                        <option value="all">All Types</option>
+                        <option value="tool_call">Tool Errors</option>
+                        <option value="escalation">Escalations</option>
+                        <option value="error">System Errors</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-y-auto h-full scrollbar-thin space-y-2">
+                <div v-if="filteredErrors.length === 0" class="text-gray-500 text-center py-8">
+                    No errors recorded
+                </div>
+                <div v-for="(err, i) in filteredErrors" :key="i"
+                     class="glass-dark rounded-lg p-4 border-l-4"
+                     :class="err.type === 'escalation' ? 'border-amber-500' : 'border-red-500'">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs px-2 py-0.5 rounded font-medium"
+                                  :class="err.type === 'escalation' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'">
+                                {{ err.type.toUpperCase() }}
+                            </span>
+                            <span v-if="err.data.errorCode" class="text-xs text-gray-500 font-mono">{{ err.data.errorCode }}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">{{ formatTime(err.timestamp) }}</span>
+                    </div>
+                    <div class="text-sm text-white mb-2">
+                        {{ err.data.error || err.data.reason || 'Unknown error' }}
+                    </div>
+                    <div v-if="err.data.tool" class="text-xs text-gray-400 mb-1">
+                        Tool: <span class="text-amber-400">{{ err.data.tool }}</span>
+                    </div>
+                    <div v-if="err.data.suggestion" class="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-500/10 rounded">
+                        {{ err.data.suggestion }}
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <span v-if="err.data.retryable" class="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">Retryable</span>
+                        <span v-if="err.data.recoverable" class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">Recoverable</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Stats -->
+        <div class="col-span-4 glass rounded-xl p-4" style="height: 65vh;">
+            <h2 class="font-semibold mb-4">Error Statistics</h2>
+            <div class="space-y-4">
+                <div class="glass-dark rounded-lg p-4">
+                    <div class="text-3xl font-bold text-red-400">{{ totalErrors }}</div>
+                    <div class="text-sm text-gray-400">Total Errors</div>
+                </div>
+
+                <div class="glass-dark rounded-lg p-4">
+                    <div class="text-lg font-semibold mb-3">By Type</div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Tool Failures</span>
+                            <span class="text-red-400 font-bold">{{ toolErrors }}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Escalations</span>
+                            <span class="text-amber-400 font-bold">{{ escalationErrors }}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">System Errors</span>
+                            <span class="text-purple-400 font-bold">{{ systemErrors }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-dark rounded-lg p-4">
+                    <div class="text-lg font-semibold mb-3">Error Codes</div>
+                    <div class="space-y-1 max-h-40 overflow-y-auto scrollbar-thin">
+                        <div v-for="(count, code) in errorCodes" :key="code"
+                             class="flex justify-between items-center text-xs py-1 border-b border-gray-700 last:border-0">
+                            <span class="text-gray-400 font-mono">{{ code }}</span>
+                            <span class="text-white">{{ count }}</span>
+                        </div>
+                        <div v-if="Object.keys(errorCodes).length === 0" class="text-gray-500 text-center py-2">
+                            No error codes
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-dark rounded-lg p-4">
+                    <div class="text-lg font-semibold mb-3">Recovery Rate</div>
+                    <div class="text-3xl font-bold" :class="recoveryRate > 50 ? 'text-green-400' : 'text-red-400'">
+                        {{ recoveryRate }}%
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">of errors are recoverable</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+createApp({
+    setup() {
+        const API = window.location.origin;
+        const connected = ref(false);
+        const sessions = ref([]);
+        const currentSessionId = ref(null);
+        const messages = ref([]);
+        const trace = ref([]);
+        const summary = ref(null);
+        const config = ref(null);
+        const newMessage = ref('');
+        const sending = ref(false);
+        const chatBox = ref(null);
+        const currentView = ref('chat');
+        const errorFilter = ref('all');
+
+        const currentCustomer = computed(() => sessions.value.find(s => s.id === currentSessionId.value)?.customer || '');
+        const currentAgent = computed(() => summary.value?.agents?.slice(-1)[0] || null);
+
+        // Error computations
+        const allErrors = computed(() => trace.value.filter(e =>
+            e.type === 'error' || e.type === 'escalation' || (e.type === 'tool_call' && !e.data.success)
+        ));
+
+        const filteredErrors = computed(() => {
+            if (errorFilter.value === 'all') return allErrors.value;
+            return allErrors.value.filter(e => e.type === errorFilter.value);
+        });
+
+        const totalErrors = computed(() => allErrors.value.length);
+        const toolErrors = computed(() => trace.value.filter(e => e.type === 'tool_call' && !e.data.success).length);
+        const escalationErrors = computed(() => trace.value.filter(e => e.type === 'escalation').length);
+        const systemErrors = computed(() => trace.value.filter(e => e.type === 'error').length);
+
+        const errorCodes = computed(() => {
+            const codes = {};
+            allErrors.value.forEach(e => {
+                const code = e.data.errorCode || 'UNKNOWN';
+                codes[code] = (codes[code] || 0) + 1;
+            });
+            return codes;
+        });
+
+        const recoveryRate = computed(() => {
+            if (allErrors.value.length === 0) return 100;
+            const recoverable = allErrors.value.filter(e => e.data.recoverable).length;
+            return Math.round((recoverable / allErrors.value.length) * 100);
+        });
+
+        const totalToolSuccess = computed(() => summary.value?.successfulToolCalls || 0);
+        const totalToolFails = computed(() => summary.value?.failedToolCalls || 0);
+        const escalatedCount = computed(() => sessions.value.filter(s => s.status === 'escalated').length);
+
+        const fetchSessions = async () => {
+            try {
+                const res = await fetch(`${API}/sessions`);
+                const data = await res.json();
+                if (data.success) {
+                    sessions.value = data.sessions;
+                    connected.value = true;
+                }
+            } catch { connected.value = false; }
+        };
+
+        const fetchConfig = async () => {
+            try {
+                const res = await fetch(`${API}/config`);
+                const data = await res.json();
+                if (data.success) {
+                    config.value = data.config;
+                }
+            } catch (e) { console.error('Failed to fetch config:', e); }
+        };
+
+        const loadSession = async () => {
+            if (!currentSessionId.value) return;
+            try {
+                const res = await fetch(`${API}/session/${currentSessionId.value}/trace?format=json`);
+                const data = await res.json();
+                if (data.success && data.trace) {
+                    trace.value = data.trace.timeline || [];
+                    summary.value = data.trace.summary || {};
+                    messages.value = trace.value
+                        .filter(e => e.type === 'message')
+                        .map(e => ({ role: e.data.role, content: e.data.content }));
+                    nextTick(() => { if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight; });
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        const selectSession = async (id) => {
+            currentSessionId.value = id;
+            await loadSession();
+        };
+
+        const newSession = async () => {
+            const email = prompt('Customer email:', 'demo@test.com');
+            if (!email) return;
+            const name = prompt('Customer name:', 'Demo Customer');
+            if (!name) return;
+            try {
+                const res = await fetch(`${API}/session/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerEmail: email,
+                        firstName: name.split(' ')[0],
+                        lastName: name.split(' ').slice(1).join(' ') || 'User',
+                        shopifyCustomerId: 'demo_' + Date.now()
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await fetchSessions();
+                    selectSession(data.sessionId);
+                }
+            } catch (e) { alert('Failed to create session'); }
+        };
+
+        const sendMessage = async () => {
+            if (!newMessage.value.trim()) return;
+
+            if (!currentSessionId.value) {
+                try {
+                    const res = await fetch(`${API}/session/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customerEmail: 'demo@lookfor.ai',
+                            firstName: 'Demo',
+                            lastName: 'Customer',
+                            shopifyCustomerId: 'demo_' + Date.now()
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        currentSessionId.value = data.sessionId;
+                        await fetchSessions();
+                    }
+                } catch { alert('Failed to create session'); return; }
+            }
+
+            const msg = newMessage.value;
+            newMessage.value = '';
+            sending.value = true;
+
+            try {
+                const res = await fetch(`${API}/session/${currentSessionId.value}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    alert(`Error: ${data.error}\n${data.suggestion || ''}`);
+                }
+                await loadSession();
+                await fetchSessions();
+            } catch (e) { alert('Failed to send: ' + e.message); }
+            finally { sending.value = false; }
+        };
+
+        const resetAll = async () => {
+            if (!confirm('Clear all sessions and start fresh?')) return;
+            try {
+                await fetch(`${API}/sessions/clear`, { method: 'POST' });
+                currentSessionId.value = null;
+                messages.value = [];
+                trace.value = [];
+                summary.value = null;
+                await fetchSessions();
+            } catch { alert('Failed to reset'); }
+        };
+
+        const formatTime = (ts) => new Date(ts).toLocaleTimeString();
+        const formatTool = (t) => t?.replace(/^shopify_|^skio_/, '').replace(/_/g, ' ') || 'unknown';
+
+        onMounted(() => {
+            fetchSessions();
+            fetchConfig();
+            setInterval(() => {
+                fetchSessions();
+                if (currentSessionId.value) loadSession();
+            }, 2000);
+        });
+
+        return {
+            connected, sessions, currentSessionId, messages, trace, summary, config,
+            newMessage, sending, chatBox, currentCustomer, currentAgent,
+            currentView, errorFilter, allErrors, filteredErrors, totalErrors,
+            toolErrors, escalationErrors, systemErrors, errorCodes, recoveryRate,
+            totalToolSuccess, totalToolFails, escalatedCount,
+            fetchSessions, selectSession, newSession, sendMessage, resetAll,
+            formatTime, formatTool
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

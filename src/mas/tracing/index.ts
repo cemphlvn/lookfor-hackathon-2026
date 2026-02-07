@@ -187,10 +187,17 @@ export class Tracer {
   traceError(sessionId: string, error: string, context?: Record<string, unknown>): void {
     const event = this.createEvent(sessionId, 'error', {
       error,
-      context
+      context,
+      recoverable: context?.recoverable ?? false,
+      retryable: context?.retryable ?? false,
+      suggestion: context?.suggestion,
     });
 
     this.addEvent(sessionId, event);
+    this.updateSummary(sessionId, s => {
+      // Track error counts in summary
+      (s as unknown as { errorCount?: number }).errorCount = ((s as unknown as { errorCount?: number }).errorCount || 0) + 1;
+    });
     console.error(`[TRACE] ERROR: ${error}`);
   }
 
@@ -268,6 +275,13 @@ export class Tracer {
   exportTrace(sessionId: string): string {
     const trace = this.getTrace(sessionId);
     return JSON.stringify(trace, null, 2);
+  }
+
+  /**
+   * Clear trace for a session
+   */
+  clearSession(sessionId: string): void {
+    this.traces.delete(sessionId);
   }
 
   private createEvent(sessionId: string, type: TraceEvent['type'], data: Record<string, unknown>): TraceEvent {

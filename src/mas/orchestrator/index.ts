@@ -8,11 +8,14 @@ import { classifyMessage, IntentClassification } from '../../meta/intent-extract
 import { MASConfig, AgentConfig, RoutingRule, EscalationConfig } from '../../meta/agent-generator';
 import { Session, memoryStore } from '../memory';
 import { tracer } from '../tracing';
+import { evaluateConfidence, ConfidenceDecision } from '../resilience';
 
 export interface RoutingResult {
   targetAgent: AgentConfig;
   intent: IntentClassification;
   confidence: number;
+  confidenceDecision: ConfidenceDecision;
+  needsClarification: boolean;
 }
 
 export interface EscalationResult {
@@ -89,10 +92,16 @@ export class Orchestrator {
       memoryStore.recordIntent(sessionId, intent.primary);
     }
 
+    // Evaluate confidence
+    const finalConfidence = highestScore || intent.confidence;
+    const confidenceDecision = evaluateConfidence(finalConfidence);
+
     return {
       targetAgent,
       intent,
-      confidence: highestScore || intent.confidence
+      confidence: finalConfidence,
+      confidenceDecision,
+      needsClarification: confidenceDecision.action === 'clarify',
     };
   }
 

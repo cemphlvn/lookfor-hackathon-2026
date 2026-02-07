@@ -13,6 +13,7 @@ import { memoryStore, Session } from './memory';
 import { Orchestrator } from './orchestrator';
 import { AgentExecutor, LLMClient, createLLMClient, createAnthropicClient, createOpenAIClient } from './agents/executor';
 import { tracer } from './tracing';
+import { SessionError, ConfigError, ErrorHandler, MASError } from './errors';
 
 export interface SessionStartParams {
   customerEmail: string;
@@ -74,7 +75,7 @@ export class MASRuntime {
   async handleMessage(sessionId: string, message: string): Promise<MessageResponse> {
     const session = memoryStore.getSession(sessionId);
     if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
+      throw SessionError.notFound(sessionId);
     }
 
     // Check if already escalated (Requirement 4: no further auto replies)
@@ -109,7 +110,7 @@ export class MASRuntime {
     // Execute agent
     const executor = this.executors.get(routing.targetAgent.id);
     if (!executor) {
-      throw new Error(`No executor for agent: ${routing.targetAgent.id}`);
+      throw ConfigError.agentNotFound(routing.targetAgent.id);
     }
 
     const response = await executor.execute(sessionId, message);
@@ -158,6 +159,27 @@ export class MASRuntime {
    */
   getActiveSessions(): Session[] {
     return memoryStore.getActiveSessions();
+  }
+
+  /**
+   * Delete a single session
+   */
+  deleteSession(sessionId: string): void {
+    memoryStore.deleteSession(sessionId);
+    tracer.clearSession(sessionId);
+    console.log(`[MAS] Session deleted: ${sessionId}`);
+  }
+
+  /**
+   * Clear all sessions
+   */
+  clearAllSessions(): void {
+    const sessions = memoryStore.getActiveSessions();
+    for (const session of sessions) {
+      tracer.clearSession(session.id);
+    }
+    memoryStore.clear();
+    console.log(`[MAS] All sessions cleared`);
   }
 
   /**

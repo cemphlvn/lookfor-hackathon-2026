@@ -5,6 +5,8 @@
  * doesn't contradict itself, behaves like real email thread
  */
 
+import { SessionError, StorageError, ErrorHandler } from '../errors';
+
 export interface Message {
   role: 'customer' | 'agent' | 'system';
   content: string;
@@ -59,11 +61,43 @@ export interface SessionContext {
   escalationSummary?: Record<string, unknown>;
 }
 
+import * as fs from 'fs';
+import * as path from 'path';
+
+const SESSIONS_FILE = path.join(process.cwd(), 'data', 'sessions.json');
+
 /**
- * In-memory session store
+ * Persistent session store (saves to file)
  */
 export class MemoryStore {
   private sessions: Map<string, Session> = new Map();
+
+  constructor() {
+    this.loadFromFile();
+  }
+
+  private loadFromFile(): void {
+    try {
+      if (fs.existsSync(SESSIONS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf-8'));
+        for (const session of data.sessions || []) {
+          this.sessions.set(session.id, session);
+        }
+        console.log(`[Memory] Loaded ${this.sessions.size} sessions from disk`);
+      }
+    } catch (e) {
+      console.log('[Memory] No existing sessions found');
+    }
+  }
+
+  private saveToFile(): void {
+    try {
+      const data = { sessions: Array.from(this.sessions.values()) };
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+      console.error('[Memory] Failed to save sessions:', e);
+    }
+  }
 
   /**
    * Start new session (Requirement 1: Email Session Start)
@@ -100,6 +134,7 @@ export class MemoryStore {
     };
 
     this.sessions.set(sessionId, session);
+    this.saveToFile();
     return session;
   }
 
@@ -115,7 +150,7 @@ export class MemoryStore {
    */
   addMessage(sessionId: string, role: 'customer' | 'agent' | 'system', content: string, metadata?: Record<string, unknown>): void {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
+    if (!session) throw SessionError.notFound(sessionId);
 
     session.messages.push({
       role,
@@ -129,6 +164,7 @@ export class MemoryStore {
     if (role === 'customer') {
       this.extractEntities(session, content);
     }
+    this.saveToFile();
   }
 
   /**
@@ -136,7 +172,7 @@ export class MemoryStore {
    */
   recordToolCall(sessionId: string, toolHandle: string, params: Record<string, unknown>, result: { success: boolean; data?: unknown; error?: string }): void {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
+    if (!session) throw SessionError.notFound(sessionId);
 
     session.toolCalls.push({
       toolHandle,
@@ -155,7 +191,7 @@ export class MemoryStore {
    */
   escalate(sessionId: string, reason: string, summary: Record<string, unknown>): void {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
+    if (!session) throw SessionError.notFound(sessionId);
 
     session.status = 'escalated';
     session.context.escalated = true;
@@ -281,10 +317,20 @@ export class MemoryStore {
   }
 
   /**
+   * Delete a single session
+   */
+  deleteSession(sessionId: string): boolean {
+    const result = this.sessions.delete(sessionId);
+    this.saveToFile();
+    return result;
+  }
+
+  /**
    * Clear all sessions (for testing)
    */
   clear(): void {
     this.sessions.clear();
+    this.saveToFile();
   }
 }
 

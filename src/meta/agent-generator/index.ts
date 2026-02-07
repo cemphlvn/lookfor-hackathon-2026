@@ -216,20 +216,74 @@ Always maintain conversation context and never contradict previous statements.`;
 
 /**
  * Generate routing rules from patterns and agents
+ * Uses fuzzy matching to connect intents with dynamically generated agents
  */
 function generateRouting(patterns: IntentPattern[], agents: AgentConfig[]): RoutingRule[] {
   const rules: RoutingRule[] = [];
 
+  // Build a keyword-based index for agent matching
+  const agentKeywords: Map<string, string[]> = new Map();
+  for (const agent of agents) {
+    // Extract meaningful keywords from agent ID
+    const keywords = agent.id.replace(/-agent$/, '').split('-');
+    agentKeywords.set(agent.id, keywords);
+  }
+
   for (const pattern of patterns) {
-    // Find matching agent
-    const matchingAgent = agents.find(a =>
-      a.id.includes(pattern.suggestedWorkflow) ||
-      a.triggers.some(t => t.toLowerCase().includes(pattern.name))
-    );
+    // Skip escalation - handled by orchestrator
+    if (pattern.id === 'escalation-request') {
+      rules.push({
+        intentId: pattern.id,
+        targetAgent: 'general-support-agent',
+        conditions: { keywords: pattern.keywords, minConfidence: 0.3 }
+      });
+      continue;
+    }
+
+    // Score agents by keyword overlap with intent
+    let bestAgent = 'general-support-agent';
+    let bestScore = 0;
+    const intentWords = pattern.id.split('-');
+    const workflowWords = pattern.suggestedWorkflow.split('-');
+
+    for (const agent of agents) {
+      if (agent.id === 'general-support-agent') continue;
+
+      const agentWords = agentKeywords.get(agent.id) || [];
+      let score = 0;
+
+      // Exact word matches are worth more
+      for (const iw of intentWords) {
+        if (agentWords.includes(iw)) {
+          score += 5; // Exact match
+        } else if (agentWords.some(aw => aw.startsWith(iw) || iw.startsWith(aw))) {
+          score += 2; // Prefix match (e.g., 'cancel' matches 'cancellation')
+        }
+      }
+
+      // Match workflow words with agent words
+      for (const ww of workflowWords) {
+        if (agentWords.includes(ww)) {
+          score += 3; // Exact match
+        } else if (agentWords.some(aw => aw.startsWith(ww) || ww.startsWith(aw))) {
+          score += 1; // Prefix match
+        }
+      }
+
+      // Bonus for trigger matches
+      if (agent.triggers.some(t => t.toLowerCase().includes(pattern.name))) {
+        score += 2;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestAgent = agent.id;
+      }
+    }
 
     rules.push({
       intentId: pattern.id,
-      targetAgent: matchingAgent?.id || 'general-support-agent',
+      targetAgent: bestAgent,
       conditions: {
         keywords: pattern.keywords,
         minConfidence: 0.3

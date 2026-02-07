@@ -155,13 +155,31 @@ export function buildDefaultMAS(brandName: string): MASBuildOutput {
     }
   ];
 
-  // Sample tickets for pattern extraction
+  // Sample tickets for pattern extraction - covers all major intents
   const sampleTickets: Ticket[] = [
+    // ORDER_STATUS
     { conversationId: '1', customerId: 'c1', createdAt: '2026-01-01', ConversationType: 'email', subject: 'Where is my order?', conversation: 'Customer\'s message: "I placed an order 5 days ago and haven\'t received it"' },
-    { conversationId: '2', customerId: 'c2', createdAt: '2026-01-02', ConversationType: 'email', subject: 'Cancel my subscription', conversation: 'Customer\'s message: "I want to cancel my monthly subscription"' },
-    { conversationId: '3', customerId: 'c3', createdAt: '2026-01-03', ConversationType: 'email', subject: 'Refund request', conversation: 'Customer\'s message: "I need a refund for my last order, product was damaged"' },
-    { conversationId: '4', customerId: 'c4', createdAt: '2026-01-04', ConversationType: 'email', subject: 'Wrong address', conversation: 'Customer\'s message: "I need to change my shipping address before it ships"' },
-    { conversationId: '5', customerId: 'c5', createdAt: '2026-01-05', ConversationType: 'email', subject: 'Skip next order', conversation: 'Customer\'s message: "Can I skip my next subscription order?"' }
+    { conversationId: '1b', customerId: 'c1b', createdAt: '2026-01-01', ConversationType: 'email', subject: 'Order tracking', conversation: 'Customer\'s message: "What is the status of my order? I need tracking info"' },
+    // CANCEL_ORDER (not subscription)
+    { conversationId: '2', customerId: 'c2', createdAt: '2026-01-02', ConversationType: 'email', subject: 'Cancel my order', conversation: 'Customer\'s message: "I want to cancel my order before it ships"' },
+    { conversationId: '2b', customerId: 'c2b', createdAt: '2026-01-02', ConversationType: 'email', subject: 'Cancel order please', conversation: 'Customer\'s message: "Please cancel my recent order #12345"' },
+    // SUBSCRIPTION_CANCEL
+    { conversationId: '3', customerId: 'c3', createdAt: '2026-01-03', ConversationType: 'email', subject: 'Cancel my subscription', conversation: 'Customer\'s message: "I want to cancel my monthly subscription"' },
+    { conversationId: '3b', customerId: 'c3b', createdAt: '2026-01-03', ConversationType: 'email', subject: 'Unsubscribe', conversation: 'Customer\'s message: "How do I unsubscribe from monthly deliveries?"' },
+    // REFUND_REQUEST
+    { conversationId: '4', customerId: 'c4', createdAt: '2026-01-04', ConversationType: 'email', subject: 'Refund request', conversation: 'Customer\'s message: "I need a refund for my last order, product was damaged"' },
+    { conversationId: '4b', customerId: 'c4b', createdAt: '2026-01-04', ConversationType: 'email', subject: 'Get my money back', conversation: 'Customer\'s message: "I want my money back please"' },
+    // RETURN_REQUEST
+    { conversationId: '5', customerId: 'c5', createdAt: '2026-01-05', ConversationType: 'email', subject: 'Return item', conversation: 'Customer\'s message: "I want to return this product, it was defective"' },
+    // SHIPPING_ADDRESS
+    { conversationId: '6', customerId: 'c6', createdAt: '2026-01-06', ConversationType: 'email', subject: 'Wrong address', conversation: 'Customer\'s message: "I need to change my shipping address before it ships"' },
+    // SUBSCRIPTION_PAUSE
+    { conversationId: '7', customerId: 'c7', createdAt: '2026-01-07', ConversationType: 'email', subject: 'Skip next order', conversation: 'Customer\'s message: "Can I skip my next subscription order?"' },
+    { conversationId: '7b', customerId: 'c7b', createdAt: '2026-01-07', ConversationType: 'email', subject: 'Pause subscription', conversation: 'Customer\'s message: "I want to pause my subscription for a month"' },
+    // PRODUCT_INQUIRY
+    { conversationId: '8', customerId: 'c8', createdAt: '2026-01-08', ConversationType: 'email', subject: 'Product question', conversation: 'Customer\'s message: "What products do you recommend for sleep?"' },
+    // GENERAL_INQUIRY
+    { conversationId: '9', customerId: 'c9', createdAt: '2026-01-09', ConversationType: 'email', subject: 'Question', conversation: 'Customer\'s message: "I have a question about your company"' }
   ];
 
   return buildMAS({

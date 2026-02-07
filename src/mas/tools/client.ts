@@ -3,11 +3,16 @@
  */
 
 import { ToolDefinition, getToolByHandle, ALL_TOOLS } from '../../meta/tool-mapper/tools';
+import { ToolError, ErrorCode } from '../errors';
+import { toolCircuitBreaker, withRetry } from '../resilience';
 
 export interface ToolCallResult {
   success: boolean;
   data?: unknown;
   error?: string;
+  errorCode?: ErrorCode;
+  retryable?: boolean;
+  suggestion?: string;
 }
 
 export class ToolClient {
@@ -21,27 +26,80 @@ export class ToolClient {
   }
 
   /**
-   * Execute a tool call
+   * Execute a tool call with circuit breaker and retry
    */
   async execute(toolHandle: string, params: Record<string, unknown>): Promise<ToolCallResult> {
     const tool = getToolByHandle(toolHandle);
     if (!tool) {
-      return { success: false, error: `Unknown tool: ${toolHandle}` };
+      const err = ToolError.notFound(toolHandle);
+      return {
+        success: false,
+        error: err.message,
+        errorCode: err.code,
+        retryable: false,
+        suggestion: err.context.suggestion,
+      };
     }
 
     // Validate required params
     const validation = this.validateParams(tool, params);
     if (!validation.valid) {
-      return { success: false, error: validation.error };
+      return {
+        success: false,
+        error: validation.error,
+        errorCode: ErrorCode.TOOL_VALIDATION_FAILED,
+        retryable: true,
+        suggestion: `Fix parameter and retry. ${validation.error}`,
+      };
+    }
+
+    // Check circuit breaker
+    if (!toolCircuitBreaker.canExecute(toolHandle)) {
+      const err = ToolError.rateLimited(toolHandle, 15);
+      return {
+        success: false,
+        error: `Circuit open: ${toolHandle} temporarily unavailable`,
+        errorCode: ErrorCode.TOOL_RATE_LIMITED,
+        retryable: true,
+        suggestion: 'Tool is experiencing issues. Wait and retry.',
+      };
     }
 
     try {
-      const response = await this.makeRequest(tool.endpoint, params);
+      // Execute with retry logic (max 2 attempts for tools)
+      const response = await withRetry(
+        () => this.makeRequest(tool.endpoint, toolHandle, params),
+        {
+          maxAttempts: 2,
+          initialDelayMs: 500,
+          retryOn: (err) => {
+            // Only retry on network/timeout errors
+            if (err instanceof Error) {
+              return err.message.includes('timeout') || err.message.includes('network');
+            }
+            return false;
+          },
+        }
+      );
+
+      // Record success for circuit breaker
+      if (response.success) {
+        toolCircuitBreaker.recordSuccess(toolHandle);
+      } else {
+        toolCircuitBreaker.recordFailure(toolHandle);
+      }
+
       return response;
     } catch (error) {
+      toolCircuitBreaker.recordFailure(toolHandle);
+
+      const err = ToolError.networkError(toolHandle, error instanceof Error ? error.message : 'Unknown error');
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: err.message,
+        errorCode: err.code,
+        retryable: true,
+        suggestion: err.context.suggestion,
       };
     }
   }
@@ -49,7 +107,7 @@ export class ToolClient {
   /**
    * Make HTTP request to tool endpoint
    */
-  private async makeRequest(endpoint: string, params: Record<string, unknown>): Promise<ToolCallResult> {
+  private async makeRequest(endpoint: string, toolHandle: string, params: Record<string, unknown>): Promise<ToolCallResult> {
     const url = `${this.apiUrl}${endpoint}`;
 
     const controller = new AbortController();
@@ -67,15 +125,36 @@ export class ToolClient {
 
       clearTimeout(timeoutId);
 
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+        const err = ToolError.rateLimited(toolHandle, retryAfter);
+        return {
+          success: false,
+          error: err.message,
+          errorCode: err.code,
+          retryable: true,
+          suggestion: err.context.suggestion,
+        };
+      }
+
       // Handle non-2xx responses
       if (!response.ok) {
         const text = await response.text();
+        let errorMessage: string;
         try {
           const errData = JSON.parse(text) as { message?: string; error?: string };
-          return { success: false, error: errData.message || errData.error || `HTTP ${response.status}` };
+          errorMessage = errData.message || errData.error || `HTTP ${response.status}`;
         } catch {
-          return { success: false, error: `HTTP ${response.status}: ${text.slice(0, 100)}` };
+          errorMessage = `HTTP ${response.status}: ${text.slice(0, 100)}`;
         }
+        return {
+          success: false,
+          error: errorMessage,
+          errorCode: ErrorCode.TOOL_EXECUTION_FAILED,
+          retryable: response.status >= 500,
+          suggestion: response.status >= 500 ? 'Server error - retry may succeed' : 'Check request parameters',
+        };
       }
 
       // All success responses are HTTP 200 per spec
@@ -84,13 +163,26 @@ export class ToolClient {
       if (data.success) {
         return { success: true, data: data.data };
       } else {
-        return { success: false, error: data.error || data.message || 'Unknown error from tool' };
+        return {
+          success: false,
+          error: data.error || data.message || 'Unknown error from tool',
+          errorCode: ErrorCode.TOOL_EXECUTION_FAILED,
+          retryable: false,
+          suggestion: 'Check parameters or try alternative approach',
+        };
       }
     } catch (error) {
       clearTimeout(timeoutId);
 
       if (error instanceof Error && error.name === 'AbortError') {
-        return { success: false, error: 'Tool call timed out' };
+        const err = ToolError.timeout(toolHandle, this.timeout);
+        return {
+          success: false,
+          error: err.message,
+          errorCode: err.code,
+          retryable: true,
+          suggestion: err.context.suggestion,
+        };
       }
 
       throw error;

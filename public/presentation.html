@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lookfor MAS Architecture - logicsticks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --accent-purple: #8b5cf6;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .slide {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            padding: 40px 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide.active { display: flex; flex-direction: column; }
+
+        .slide-number {
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+            font-size: 14px;
+            color: #666;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .team-badge {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 0%, #a78bfa 50%, #60a5fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-purple);
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #888;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-glow {
+            box-shadow: 0 0 40px rgba(139, 92, 246, 0.1);
+        }
+
+        .diagram-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+
+        .highlight-purple { color: var(--accent-purple); }
+        .highlight-blue { color: var(--accent-blue); }
+        .highlight-cyan { color: var(--accent-cyan); }
+        .highlight-green { color: var(--accent-green); }
+        .highlight-amber { color: var(--accent-amber); }
+        .highlight-red { color: var(--accent-red); }
+
+        .nav-btn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: white;
+            padding: 20px 15px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s;
+            border-radius: 8px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(139, 92, 246, 0.4);
+        }
+
+        .nav-prev { left: 20px; }
+        .nav-next { right: 20px; }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+            transition: width 0.3s;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .animate-in { animation: fadeInUp 0.6s ease-out forwards; }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+        .delay-4 { animation-delay: 0.4s; opacity: 0; }
+        .delay-5 { animation-delay: 0.5s; opacity: 0; }
+
+        .flow-arrow {
+            stroke: var(--accent-purple);
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+
+        .box {
+            fill: var(--bg-card);
+            stroke: rgba(255,255,255,0.2);
+            stroke-width: 1;
+            rx: 8;
+        }
+
+        .box-purple { stroke: var(--accent-purple); }
+        .box-blue { stroke: var(--accent-blue); }
+        .box-green { stroke: var(--accent-green); }
+        .box-amber { stroke: var(--accent-amber); }
+        .box-red { stroke: var(--accent-red); }
+
+        .metric-card {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metric-label {
+            font-size: 1rem;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .list-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr;
+            gap: 20px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .table-header {
+            font-weight: 600;
+            color: var(--accent-purple);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <button class="nav-btn nav-prev" onclick="prevSlide()">&#10094;</button>
+    <button class="nav-btn nav-next" onclick="nextSlide()">&#10095;</button>
+    <div class="progress-bar" id="progress"></div>
+
+    <!-- SLIDE 1: Title -->
+    <div class="slide active" id="slide-1">
+        <div class="team-badge">LOGICSTICKS</div>
+        <div class="flex-1 flex flex-col items-center justify-center text-center">
+            <div class="animate-in">
+                <h1>Lookfor MAS</h1>
+                <p class="subtitle">Multi-Agent System Architecture</p>
+            </div>
+            <div class="animate-in delay-2 mt-8">
+                <svg width="400" height="200" viewBox="0 0 400 200">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Central node -->
+                    <circle cx="200" cy="100" r="40" fill="url(#grad1)" stroke="#8b5cf6" stroke-width="2"/>
+                    <text x="200" y="105" text-anchor="middle" fill="white" font-size="12" font-weight="600">MAS</text>
+                    <!-- Orbiting nodes -->
+                    <circle cx="100" cy="60" r="25" fill="url(#grad1)" stroke="#10b981" stroke-width="2"/>
+                    <text x="100" y="65" text-anchor="middle" fill="white" font-size="10">Agent</text>
+                    <circle cx="300" cy="60" r="25" fill="url(#grad1)" stroke="#10b981" stroke-width="2"/>
+                    <text x="300" y="65" text-anchor="middle" fill="white" font-size="10">Agent</text>
+                    <circle cx="100" cy="140" r="25" fill="url(#grad1)" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="100" y="145" text-anchor="middle" fill="white" font-size="10">Tools</text>
+                    <circle cx="300" cy="140" r="25" fill="url(#grad1)" stroke="#06b6d4" stroke-width="2"/>
+                    <text x="300" y="145" text-anchor="middle" fill="white" font-size="10">Memory</text>
+                    <!-- Lines -->
+                    <line x1="160" y1="100" x2="125" y2="75" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/>
+                    <line x1="240" y1="100" x2="275" y2="75" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/>
+                    <line x1="160" y1="100" x2="125" y2="125" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/>
+                    <line x1="240" y1="100" x2="275" y2="125" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/>
+                </svg>
+            </div>
+            <div class="animate-in delay-3 mt-12 text-gray-500">
+                Lookfor Hackathon 2026 &bull; Self-Referential Meta-Automata
+            </div>
+        </div>
+        <div class="slide-number">01 / 15</div>
+    </div>
+
+    <!-- SLIDE 2: System Overview -->
+    <div class="slide" id="slide-2">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">System Overview</h2>
+        <div class="grid grid-cols-4 gap-6 animate-in delay-1">
+            <div class="card metric-card">
+                <div class="metric-value">7</div>
+                <div class="metric-label">Specialized Agents</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-value">19</div>
+                <div class="metric-label">API Tools</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-value">13</div>
+                <div class="metric-label">Intent Categories</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-value">4</div>
+                <div class="metric-label">Core Requirements</div>
+            </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center animate-in delay-2">
+            <svg width="900" height="350" viewBox="0 0 900 350">
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+                    </marker>
+                </defs>
+                <!-- Customer -->
+                <rect x="30" y="140" width="100" height="70" class="box box-blue" rx="8"/>
+                <text x="80" y="180" text-anchor="middle" fill="white" font-size="14" font-weight="600">Customer</text>
+
+                <!-- API Server -->
+                <rect x="180" y="140" width="120" height="70" class="box box-purple" rx="8"/>
+                <text x="240" y="175" text-anchor="middle" fill="white" font-size="14" font-weight="600">API Server</text>
+                <text x="240" y="195" text-anchor="middle" fill="#888" font-size="10">HTTP/REST</text>
+
+                <!-- Orchestrator -->
+                <rect x="350" y="100" width="140" height="150" class="box box-purple" rx="8"/>
+                <text x="420" y="130" text-anchor="middle" fill="white" font-size="14" font-weight="600">Orchestrator</text>
+                <text x="420" y="155" text-anchor="middle" fill="#888" font-size="10">Intent Router</text>
+                <text x="420" y="175" text-anchor="middle" fill="#888" font-size="10">Escalation</text>
+                <text x="420" y="195" text-anchor="middle" fill="#888" font-size="10">Confidence</text>
+                <text x="420" y="215" text-anchor="middle" fill="#888" font-size="10">Circuit Breaker</text>
+
+                <!-- Agent Layer -->
+                <rect x="540" y="50" width="120" height="60" class="box box-green" rx="8"/>
+                <text x="600" y="85" text-anchor="middle" fill="white" font-size="12">Order Agent</text>
+
+                <rect x="540" y="120" width="120" height="60" class="box box-green" rx="8"/>
+                <text x="600" y="155" text-anchor="middle" fill="white" font-size="12">Refund Agent</text>
+
+                <rect x="540" y="190" width="120" height="60" class="box box-green" rx="8"/>
+                <text x="600" y="225" text-anchor="middle" fill="white" font-size="12">Sub Agent</text>
+
+                <rect x="540" y="260" width="120" height="60" class="box box-green" rx="8"/>
+                <text x="600" y="295" text-anchor="middle" fill="white" font-size="12">+ 4 more</text>
+
+                <!-- Tools -->
+                <rect x="710" y="80" width="140" height="80" class="box box-amber" rx="8"/>
+                <text x="780" y="115" text-anchor="middle" fill="white" font-size="12" font-weight="600">Shopify API</text>
+                <text x="780" y="140" text-anchor="middle" fill="#888" font-size="10">14 tools</text>
+
+                <rect x="710" y="180" width="140" height="80" class="box box-amber" rx="8"/>
+                <text x="780" y="215" text-anchor="middle" fill="white" font-size="12" font-weight="600">Skio API</text>
+                <text x="780" y="240" text-anchor="middle" fill="#888" font-size="10">5 tools</text>
+
+                <!-- Arrows -->
+                <path d="M130 175 L175 175" class="flow-arrow"/>
+                <path d="M300 175 L345 175" class="flow-arrow"/>
+                <path d="M490 150 L535 80" class="flow-arrow"/>
+                <path d="M490 175 L535 150" class="flow-arrow"/>
+                <path d="M490 175 L535 220" class="flow-arrow"/>
+                <path d="M660 110 L705 120" class="flow-arrow"/>
+                <path d="M660 220 L705 220" class="flow-arrow"/>
+            </svg>
+        </div>
+        <div class="slide-number">02 / 15</div>
+    </div>
+
+    <!-- SLIDE 3: Core Requirements -->
+    <div class="slide" id="slide-3">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">4 Core Requirements</h2>
+        <div class="grid grid-cols-2 gap-8 flex-1 animate-in delay-1">
+            <div class="card card-glow">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-2xl">1</div>
+                    <h3 class="m-0">Email Session Start</h3>
+                </div>
+                <p class="text-gray-400 mb-4">System receives new email → Creates session with customer context</p>
+                <div class="code">
+POST /session/start
+{
+  "customerEmail": "user@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "shopifyCustomerId": "cust_123"
+}
+→ { "sessionId": "session_..." }
+                </div>
+            </div>
+
+            <div class="card card-glow">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-2xl">2</div>
+                    <h3 class="m-0">Continuous Memory</h3>
+                </div>
+                <p class="text-gray-400 mb-4">System remembers context, doesn't contradict itself</p>
+                <div class="code">
+Session Memory:
+├─ messages[]        # Full conversation
+├─ toolCalls[]       # All API calls
+├─ context
+│   ├─ orderHistory  # Cached from tools
+│   ├─ intentHistory # Classification log
+│   └─ currentAgent  # Active agent
+                </div>
+            </div>
+
+            <div class="card card-glow">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center text-2xl">3</div>
+                    <h3 class="m-0">Observable Actions</h3>
+                </div>
+                <p class="text-gray-400 mb-4">All decisions and tool calls are traceable</p>
+                <div class="code">
+Trace Timeline:
+[09:41:23] MESSAGE: customer - "Where's my order?"
+[09:41:24] ROUTING: none → order-tracking-agent
+[09:41:25] TOOL: shopify_get_order → ✓
+[09:41:26] MESSAGE: agent - "Order #1234 is..."
+                </div>
+            </div>
+
+            <div class="card card-glow">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center text-2xl">4</div>
+                    <h3 class="m-0">Smart Escalation</h3>
+                </div>
+                <p class="text-gray-400 mb-4">Detect when human needed, stop auto-replies, provide summary</p>
+                <div class="code">
+Escalation Triggers:
+├─ Keywords: "human", "manager", "supervisor"
+├─ Phrases: "speak to", "transfer to"
+├─ Complex: 3+ unique intents
+├─ Safety: 2+ tool failures
+└─ Output: escalationSummary for agent
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">03 / 15</div>
+    </div>
+
+    <!-- SLIDE 4: Architecture Layers -->
+    <div class="slide" id="slide-4">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Architecture Layers</h2>
+        <div class="diagram-container animate-in delay-1">
+            <svg width="1000" height="450" viewBox="0 0 1000 450">
+                <!-- Layer Labels -->
+                <text x="50" y="60" fill="#888" font-size="12" font-weight="600">STEP 2: META-SYSTEM</text>
+                <text x="50" y="270" fill="#888" font-size="12" font-weight="600">STEP 1: MAS RUNTIME</text>
+
+                <!-- Step 2 Boxes -->
+                <rect x="100" y="80" width="160" height="70" class="box box-purple" rx="8"/>
+                <text x="180" y="110" text-anchor="middle" fill="white" font-size="12" font-weight="600">Workflow Parser</text>
+                <text x="180" y="130" text-anchor="middle" fill="#888" font-size="10">CSV → Config</text>
+
+                <rect x="300" y="80" width="160" height="70" class="box box-purple" rx="8"/>
+                <text x="380" y="110" text-anchor="middle" fill="white" font-size="12" font-weight="600">Intent Extractor</text>
+                <text x="380" y="130" text-anchor="middle" fill="#888" font-size="10">Tickets → Patterns</text>
+
+                <rect x="500" y="80" width="160" height="70" class="box box-purple" rx="8"/>
+                <text x="580" y="110" text-anchor="middle" fill="white" font-size="12" font-weight="600">Agent Generator</text>
+                <text x="580" y="130" text-anchor="middle" fill="#888" font-size="10">Patterns → Agents</text>
+
+                <rect x="700" y="80" width="160" height="70" class="box box-purple" rx="8"/>
+                <text x="780" y="110" text-anchor="middle" fill="white" font-size="12" font-weight="600">MAS Builder</text>
+                <text x="780" y="130" text-anchor="middle" fill="#888" font-size="10">Assemble Config</text>
+
+                <!-- Arrow down -->
+                <path d="M500 180 L500 230" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5,5"/>
+                <text x="520" y="210" fill="#8b5cf6" font-size="11">generates</text>
+
+                <!-- Step 1 Boxes -->
+                <rect x="100" y="290" width="130" height="70" class="box box-blue" rx="8"/>
+                <text x="165" y="320" text-anchor="middle" fill="white" font-size="12" font-weight="600">API Server</text>
+                <text x="165" y="340" text-anchor="middle" fill="#888" font-size="10">HTTP Endpoints</text>
+
+                <rect x="260" y="290" width="130" height="70" class="box box-blue" rx="8"/>
+                <text x="325" y="320" text-anchor="middle" fill="white" font-size="12" font-weight="600">Orchestrator</text>
+                <text x="325" y="340" text-anchor="middle" fill="#888" font-size="10">Intent Router</text>
+
+                <rect x="420" y="290" width="130" height="70" class="box box-green" rx="8"/>
+                <text x="485" y="320" text-anchor="middle" fill="white" font-size="12" font-weight="600">Agents</text>
+                <text x="485" y="340" text-anchor="middle" fill="#888" font-size="10">LLM + Tools</text>
+
+                <rect x="580" y="290" width="130" height="70" class="box box-amber" rx="8"/>
+                <text x="645" y="320" text-anchor="middle" fill="white" font-size="12" font-weight="600">Tool Client</text>
+                <text x="645" y="340" text-anchor="middle" fill="#888" font-size="10">Shopify/Skio</text>
+
+                <rect x="740" y="290" width="130" height="70" class="box box-cyan" rx="8"/>
+                <text x="805" y="320" text-anchor="middle" fill="white" font-size="12" font-weight="600">Memory</text>
+                <text x="805" y="340" text-anchor="middle" fill="#888" font-size="10">Session Store</text>
+
+                <!-- Bottom layer -->
+                <rect x="260" y="390" width="130" height="50" class="box" rx="8"/>
+                <text x="325" y="420" text-anchor="middle" fill="white" font-size="12">Tracer</text>
+
+                <rect x="420" y="390" width="130" height="50" class="box box-red" rx="8"/>
+                <text x="485" y="420" text-anchor="middle" fill="white" font-size="12">Escalation</text>
+
+                <rect x="580" y="390" width="130" height="50" class="box" rx="8"/>
+                <text x="645" y="420" text-anchor="middle" fill="white" font-size="12">Resilience</text>
+
+                <!-- Connections -->
+                <path d="M230 325 L255 325" class="flow-arrow"/>
+                <path d="M390 325 L415 325" class="flow-arrow"/>
+                <path d="M550 325 L575 325" class="flow-arrow"/>
+                <path d="M485 360 L485 385" stroke="#888" stroke-width="1"/>
+            </svg>
+        </div>
+        <div class="slide-number">04 / 15</div>
+    </div>
+
+    <!-- SLIDE 5: Agent System -->
+    <div class="slide" id="slide-5">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">7 Specialized Agents</h2>
+        <div class="grid grid-cols-3 gap-4 flex-1 animate-in delay-1">
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">📦</div>
+                    <div>
+                        <h3 class="m-0 text-base">Order Tracking</h3>
+                        <span class="text-xs text-gray-500">order-tracking-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Handles order status inquiries</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> get_order_details, get_customer_orders
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">🚫</div>
+                    <div>
+                        <h3 class="m-0 text-base">Order Cancellation</h3>
+                        <span class="text-xs text-gray-500">order-cancellation-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Processes cancellation requests</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> cancel_order, get_order_details
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">💰</div>
+                    <div>
+                        <h3 class="m-0 text-base">Refund Processing</h3>
+                        <span class="text-xs text-gray-500">refund-processing-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Handles refund & return requests</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> refund_order, create_return, create_store_credit
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">🔄</div>
+                    <div>
+                        <h3 class="m-0 text-base">Subscription Mgmt</h3>
+                        <span class="text-xs text-gray-500">subscription-management-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Manages Skio subscriptions</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> get_subscription_status, cancel/pause/skip_subscription
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">📍</div>
+                    <div>
+                        <h3 class="m-0 text-base">Address Update</h3>
+                        <span class="text-xs text-gray-500">address-update-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Updates shipping addresses</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> update_order_shipping_address
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">🏷️</div>
+                    <div>
+                        <h3 class="m-0 text-base">Product Info</h3>
+                        <span class="text-xs text-gray-500">product-information-agent</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p class="mb-2">Product details & recommendations</p>
+                    <div class="text-xs">
+                        <span class="highlight-amber">Tools:</span> get_product_details, get_recommendations
+                    </div>
+                </div>
+            </div>
+
+            <div class="card col-span-3">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center">💬</div>
+                    <div>
+                        <h3 class="m-0 text-base">General Support</h3>
+                        <span class="text-xs text-gray-500">general-support-agent (FALLBACK)</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p>Handles all other inquiries. Acts as fallback when routing confidence is low. Can access knowledge base and escalate when needed.</p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">05 / 15</div>
+    </div>
+
+    <!-- SLIDE 6: Intent Classification -->
+    <div class="slide" id="slide-6">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Intent Classification</h2>
+        <div class="grid grid-cols-2 gap-8 flex-1 animate-in delay-1">
+            <div>
+                <h3>13 Intent Categories</h3>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-red-400 font-mono text-sm w-6">15</span>
+                        <span class="text-white">ESCALATION_REQUEST</span>
+                        <span class="text-gray-500 text-sm ml-auto">Highest Priority</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-amber-400 font-mono text-sm w-6">10</span>
+                        <span class="text-white">SUBSCRIPTION_CANCEL</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-amber-400 font-mono text-sm w-6">10</span>
+                        <span class="text-white">SUBSCRIPTION_PAUSE</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-yellow-400 font-mono text-sm w-6">8</span>
+                        <span class="text-white">REFUND_REQUEST</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-yellow-400 font-mono text-sm w-6">7</span>
+                        <span class="text-white">RETURN_REQUEST</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-green-400 font-mono text-sm w-6">6</span>
+                        <span class="text-white">CANCEL_ORDER</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <span class="text-green-400 font-mono text-sm w-6">3</span>
+                        <span class="text-white">ORDER_STATUS</span>
+                        <span class="text-gray-500 text-sm ml-auto">Lowest Specificity</span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3>Pattern Matching Flow</h3>
+                <svg width="400" height="350" viewBox="0 0 400 350">
+                    <!-- Input -->
+                    <rect x="100" y="20" width="200" height="50" class="box box-blue" rx="8"/>
+                    <text x="200" y="50" text-anchor="middle" fill="white" font-size="12">"I want to cancel my order"</text>
+
+                    <!-- Arrow -->
+                    <path d="M200 70 L200 100" stroke="#8b5cf6" stroke-width="2"/>
+
+                    <!-- Classifier -->
+                    <rect x="100" y="100" width="200" height="60" class="box box-purple" rx="8"/>
+                    <text x="200" y="125" text-anchor="middle" fill="white" font-size="12" font-weight="600">classifyMessage()</text>
+                    <text x="200" y="145" text-anchor="middle" fill="#888" font-size="10">Keyword + Priority Scoring</text>
+
+                    <!-- Arrow -->
+                    <path d="M200 160 L200 190" stroke="#8b5cf6" stroke-width="2"/>
+
+                    <!-- Result -->
+                    <rect x="50" y="190" width="300" height="80" class="box box-green" rx="8"/>
+                    <text x="200" y="215" text-anchor="middle" fill="white" font-size="12" font-weight="600">IntentClassification</text>
+                    <text x="200" y="240" text-anchor="middle" fill="#888" font-size="11">primary: "CANCEL_ORDER"</text>
+                    <text x="200" y="260" text-anchor="middle" fill="#888" font-size="11">confidence: 0.85</text>
+
+                    <!-- Arrow -->
+                    <path d="M200 270 L200 300" stroke="#8b5cf6" stroke-width="2"/>
+
+                    <!-- Router -->
+                    <rect x="50" y="300" width="300" height="40" class="box box-amber" rx="8"/>
+                    <text x="200" y="325" text-anchor="middle" fill="white" font-size="12">→ order-cancellation-agent</text>
+                </svg>
+            </div>
+        </div>
+        <div class="slide-number">06 / 15</div>
+    </div>
+
+    <!-- SLIDE 7: Tool System -->
+    <div class="slide" id="slide-7">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">19 API Tools</h2>
+        <div class="grid grid-cols-2 gap-8 flex-1 animate-in delay-1">
+            <div class="card">
+                <h3 class="flex items-center gap-2">
+                    <span class="text-amber-400">Shopify API</span>
+                    <span class="text-sm text-gray-500">14 tools</span>
+                </h3>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div class="p-2 bg-gray-800/50 rounded">get_customer_orders</div>
+                    <div class="p-2 bg-gray-800/50 rounded">get_order_details</div>
+                    <div class="p-2 bg-gray-800/50 rounded">cancel_order</div>
+                    <div class="p-2 bg-gray-800/50 rounded">refund_order</div>
+                    <div class="p-2 bg-gray-800/50 rounded">create_return</div>
+                    <div class="p-2 bg-gray-800/50 rounded">create_store_credit</div>
+                    <div class="p-2 bg-gray-800/50 rounded">create_discount_code</div>
+                    <div class="p-2 bg-gray-800/50 rounded">update_shipping_address</div>
+                    <div class="p-2 bg-gray-800/50 rounded">get_product_details</div>
+                    <div class="p-2 bg-gray-800/50 rounded">get_recommendations</div>
+                    <div class="p-2 bg-gray-800/50 rounded">get_collection_recs</div>
+                    <div class="p-2 bg-gray-800/50 rounded">get_knowledge_source</div>
+                    <div class="p-2 bg-gray-800/50 rounded">add_tags</div>
+                    <div class="p-2 bg-gray-800/50 rounded">+ more...</div>
+                </div>
+            </div>
+            <div class="card">
+                <h3 class="flex items-center gap-2">
+                    <span class="text-purple-400">Skio API</span>
+                    <span class="text-sm text-gray-500">5 tools</span>
+                </h3>
+                <div class="grid grid-cols-1 gap-2 text-sm mb-6">
+                    <div class="p-2 bg-gray-800/50 rounded">get_subscription_status</div>
+                    <div class="p-2 bg-gray-800/50 rounded">cancel_subscription</div>
+                    <div class="p-2 bg-gray-800/50 rounded">pause_subscription</div>
+                    <div class="p-2 bg-gray-800/50 rounded">unpause_subscription</div>
+                    <div class="p-2 bg-gray-800/50 rounded">skip_next_order_subscription</div>
+                </div>
+                <h3 class="mt-4">Tool Definition Schema</h3>
+                <div class="code text-xs">
+{
+  handle: "shopify_refund_order",
+  endpoint: "/hackhaton/refund",
+  params: [
+    { name: "orderId", type: "string", required: true },
+    { name: "amount", type: "number", required: true },
+    { name: "reason", type: "string", enum: [...] }
+  ]
+}
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">07 / 15</div>
+    </div>
+
+    <!-- SLIDE 8: Error System -->
+    <div class="slide" id="slide-8">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Error Handling System</h2>
+        <div class="grid grid-cols-4 gap-4 mb-6 animate-in delay-1">
+            <div class="card text-center p-4">
+                <div class="text-2xl font-bold text-purple-400">E1xxx</div>
+                <div class="text-sm text-gray-400">Session</div>
+            </div>
+            <div class="card text-center p-4">
+                <div class="text-2xl font-bold text-amber-400">E2xxx</div>
+                <div class="text-sm text-gray-400">Tool</div>
+            </div>
+            <div class="card text-center p-4">
+                <div class="text-2xl font-bold text-blue-400">E3xxx</div>
+                <div class="text-sm text-gray-400">Routing</div>
+            </div>
+            <div class="card text-center p-4">
+                <div class="text-2xl font-bold text-red-400">E4xxx</div>
+                <div class="text-sm text-gray-400">Escalation</div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-8 flex-1 animate-in delay-2">
+            <div>
+                <h3>Error Class Hierarchy</h3>
+                <div class="code text-sm">
+MASError (base)
+├── SessionError
+│   ├── E1001 SESSION_NOT_FOUND
+│   ├── E1002 SESSION_ALREADY_ESCALATED
+│   └── E1003 SESSION_EXPIRED
+├── ToolError
+│   ├── E2001 TOOL_NOT_FOUND
+│   ├── E2002 TOOL_VALIDATION_FAILED
+│   ├── E2003 TOOL_EXECUTION_FAILED
+│   └── E2004 TOOL_TIMEOUT
+├── RoutingError
+│   ├── E3001 ROUTING_NO_AGENT
+│   └── E3003 ROUTING_LOOP_DETECTED
+├── LLMError
+│   ├── E6001 LLM_API_KEY_MISSING
+│   └── E6002 LLM_REQUEST_FAILED
+└── ConfigError
+    └── E7001 CONFIG_INVALID
+                </div>
+            </div>
+            <div>
+                <h3>Error Context</h3>
+                <div class="code text-sm mb-4">
+interface ErrorContext {
+  sessionId?: string;
+  toolHandle?: string;
+  timestamp: string;
+  <span class="highlight-green">recoverable: boolean;</span>
+  <span class="highlight-amber">retryable: boolean;</span>
+  <span class="highlight-cyan">suggestion?: string;</span>
+}
+                </div>
+                <h3>API Response</h3>
+                <div class="code text-sm">
+{
+  "success": false,
+  "error": "[E2004] Tool call timed out",
+  "code": "E2004",
+  "suggestion": "API is slow. Retry."
+}
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">08 / 15</div>
+    </div>
+
+    <!-- SLIDE 9: Resilience Patterns -->
+    <div class="slide" id="slide-9">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Resilience Patterns</h2>
+        <div class="grid grid-cols-3 gap-6 flex-1 animate-in delay-1">
+            <div class="card card-glow">
+                <h3>Circuit Breaker</h3>
+                <svg width="100%" height="180" viewBox="0 0 280 180">
+                    <!-- States -->
+                    <circle cx="60" cy="90" r="35" fill="none" stroke="#10b981" stroke-width="2"/>
+                    <text x="60" y="95" text-anchor="middle" fill="white" font-size="11">CLOSED</text>
+
+                    <circle cx="140" cy="90" r="35" fill="none" stroke="#ef4444" stroke-width="2"/>
+                    <text x="140" y="95" text-anchor="middle" fill="white" font-size="11">OPEN</text>
+
+                    <circle cx="220" cy="90" r="35" fill="none" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="220" y="88" text-anchor="middle" fill="white" font-size="10">HALF</text>
+                    <text x="220" y="100" text-anchor="middle" fill="white" font-size="10">OPEN</text>
+
+                    <!-- Arrows -->
+                    <path d="M95 90 L105 90" stroke="#888" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <path d="M175 90 L185 90" stroke="#888" stroke-width="1" marker-end="url(#arrowhead)"/>
+                    <path d="M220 55 Q220 30 60 55" stroke="#888" stroke-width="1" fill="none"/>
+
+                    <!-- Labels -->
+                    <text x="60" y="145" text-anchor="middle" fill="#888" font-size="9">5 failures</text>
+                    <text x="140" y="145" text-anchor="middle" fill="#888" font-size="9">30s timeout</text>
+                    <text x="220" y="145" text-anchor="middle" fill="#888" font-size="9">2 success</text>
+                </svg>
+                <div class="text-sm text-gray-400 mt-2">
+                    Prevents cascading failures by blocking requests to failing services
+                </div>
+            </div>
+
+            <div class="card card-glow">
+                <h3>Exponential Backoff</h3>
+                <svg width="100%" height="180" viewBox="0 0 280 180">
+                    <!-- Bars -->
+                    <rect x="40" y="120" width="40" height="30" fill="#8b5cf6" rx="4"/>
+                    <text x="60" y="160" text-anchor="middle" fill="#888" font-size="10">100ms</text>
+
+                    <rect x="100" y="90" width="40" height="60" fill="#8b5cf6" rx="4"/>
+                    <text x="120" y="160" text-anchor="middle" fill="#888" font-size="10">200ms</text>
+
+                    <rect x="160" y="50" width="40" height="100" fill="#8b5cf6" rx="4"/>
+                    <text x="180" y="160" text-anchor="middle" fill="#888" font-size="10">400ms</text>
+
+                    <rect x="220" y="20" width="40" height="130" fill="#8b5cf6" rx="4"/>
+                    <text x="240" y="160" text-anchor="middle" fill="#888" font-size="10">800ms</text>
+
+                    <!-- Labels -->
+                    <text x="60" y="110" text-anchor="middle" fill="white" font-size="10">1</text>
+                    <text x="120" y="80" text-anchor="middle" fill="white" font-size="10">2</text>
+                    <text x="180" y="40" text-anchor="middle" fill="white" font-size="10">3</text>
+                </svg>
+                <div class="text-sm text-gray-400 mt-2">
+                    Retry with increasing delays: 100ms → 200ms → 400ms...
+                </div>
+            </div>
+
+            <div class="card card-glow">
+                <h3>Confidence Thresholds</h3>
+                <svg width="100%" height="180" viewBox="0 0 280 180">
+                    <!-- Scale -->
+                    <rect x="40" y="80" width="200" height="20" fill="#1a1a2e" rx="4"/>
+
+                    <!-- Zones -->
+                    <rect x="40" y="80" width="30" height="20" fill="#ef4444" rx="4"/>
+                    <rect x="70" y="80" width="30" height="20" fill="#f59e0b"/>
+                    <rect x="100" y="80" width="40" height="20" fill="#eab308"/>
+                    <rect x="140" y="80" width="100" height="20" fill="#10b981" rx="4"/>
+
+                    <!-- Labels -->
+                    <text x="55" y="120" text-anchor="middle" fill="#ef4444" font-size="9">ESC</text>
+                    <text x="85" y="120" text-anchor="middle" fill="#f59e0b" font-size="9">FALLBACK</text>
+                    <text x="120" y="120" text-anchor="middle" fill="#eab308" font-size="9">CLARIFY</text>
+                    <text x="190" y="120" text-anchor="middle" fill="#10b981" font-size="9">PROCEED</text>
+
+                    <!-- Values -->
+                    <text x="40" y="70" text-anchor="middle" fill="#888" font-size="10">0</text>
+                    <text x="70" y="70" text-anchor="middle" fill="#888" font-size="10">0.1</text>
+                    <text x="100" y="70" text-anchor="middle" fill="#888" font-size="10">0.2</text>
+                    <text x="140" y="70" text-anchor="middle" fill="#888" font-size="10">0.3</text>
+                    <text x="240" y="70" text-anchor="middle" fill="#888" font-size="10">1.0</text>
+                </svg>
+                <div class="text-sm text-gray-400 mt-2">
+                    Route decisions based on intent classification confidence
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">09 / 15</div>
+    </div>
+
+    <!-- SLIDE 10: Message Flow -->
+    <div class="slide" id="slide-10">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Message Flow</h2>
+        <div class="diagram-container animate-in delay-1">
+            <svg width="950" height="420" viewBox="0 0 950 420">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+                    </marker>
+                </defs>
+
+                <!-- Step boxes -->
+                <rect x="20" y="50" width="120" height="60" class="box box-blue" rx="8"/>
+                <text x="80" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">1. Receive</text>
+                <text x="80" y="95" text-anchor="middle" fill="#888" font-size="9">POST /message</text>
+
+                <rect x="170" y="50" width="120" height="60" class="box" rx="8"/>
+                <text x="230" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">2. Check</text>
+                <text x="230" y="95" text-anchor="middle" fill="#888" font-size="9">isEscalated?</text>
+
+                <rect x="320" y="50" width="120" height="60" class="box box-purple" rx="8"/>
+                <text x="380" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">3. Record</text>
+                <text x="380" y="95" text-anchor="middle" fill="#888" font-size="9">addMessage()</text>
+
+                <rect x="470" y="50" width="120" height="60" class="box box-red" rx="8"/>
+                <text x="530" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">4. Escalate?</text>
+                <text x="530" y="95" text-anchor="middle" fill="#888" font-size="9">checkEscalation()</text>
+
+                <rect x="620" y="50" width="120" height="60" class="box box-purple" rx="8"/>
+                <text x="680" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">5. Route</text>
+                <text x="680" y="95" text-anchor="middle" fill="#888" font-size="9">classifyIntent()</text>
+
+                <rect x="770" y="50" width="120" height="60" class="box box-green" rx="8"/>
+                <text x="830" y="75" text-anchor="middle" fill="white" font-size="11" font-weight="600">6. Execute</text>
+                <text x="830" y="95" text-anchor="middle" fill="#888" font-size="9">agent.execute()</text>
+
+                <!-- Agent execution detail -->
+                <rect x="620" y="150" width="270" height="180" class="box" rx="8" stroke-dasharray="5,5"/>
+                <text x="755" y="175" text-anchor="middle" fill="#888" font-size="10">Agent Execution Loop</text>
+
+                <rect x="640" y="190" width="100" height="40" class="box box-purple" rx="6"/>
+                <text x="690" y="215" text-anchor="middle" fill="white" font-size="10">LLM Call</text>
+
+                <rect x="770" y="190" width="100" height="40" class="box box-amber" rx="6"/>
+                <text x="820" y="215" text-anchor="middle" fill="white" font-size="10">Tool Call</text>
+
+                <rect x="640" y="250" width="100" height="40" class="box box-cyan" rx="6"/>
+                <text x="690" y="275" text-anchor="middle" fill="white" font-size="10">Memory</text>
+
+                <rect x="770" y="250" width="100" height="40" class="box" rx="6"/>
+                <text x="820" y="275" text-anchor="middle" fill="white" font-size="10">Trace</text>
+
+                <!-- Final steps -->
+                <rect x="470" y="350" width="120" height="50" class="box box-red" rx="8"/>
+                <text x="530" y="380" text-anchor="middle" fill="white" font-size="11">7. Post-Check</text>
+
+                <rect x="320" y="350" width="120" height="50" class="box box-blue" rx="8"/>
+                <text x="380" y="380" text-anchor="middle" fill="white" font-size="11">8. Response</text>
+
+                <!-- Arrows -->
+                <path d="M140 80 L165 80" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M290 80 L315 80" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M440 80 L465 80" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M590 80 L615 80" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M740 80 L765 80" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <path d="M830 110 L830 145" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M755 330 L755 310 L590 310 L590 375 L535 375" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+                <path d="M470 375 L445 375" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- Loop arrow inside agent box -->
+                <path d="M740 210 L765 210" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+                <path d="M820 230 L820 245" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+                <path d="M770 270 L745 270" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+                <path d="M690 250 L690 235" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+
+                <text x="755" y="305" text-anchor="middle" fill="#888" font-size="9">max 5 iterations</text>
+            </svg>
+        </div>
+        <div class="slide-number">10 / 15</div>
+    </div>
+
+    <!-- SLIDE 11: Escalation Flow -->
+    <div class="slide" id="slide-11">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Escalation System</h2>
+        <div class="grid grid-cols-2 gap-8 flex-1 animate-in delay-1">
+            <div>
+                <h3>Triggers</h3>
+                <div class="space-y-3">
+                    <div class="list-item">
+                        <div class="list-icon bg-red-500/20 text-red-400">!</div>
+                        <div>
+                            <div class="font-medium">Explicit Request</div>
+                            <div class="text-sm text-gray-400">"human", "manager", "supervisor", "real person"</div>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div class="list-icon bg-amber-500/20 text-amber-400">→</div>
+                        <div>
+                            <div class="font-medium">Transfer Phrases</div>
+                            <div class="text-sm text-gray-400">"speak to", "talk to", "transfer to"</div>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div class="list-icon bg-purple-500/20 text-purple-400">∿</div>
+                        <div>
+                            <div class="font-medium">Complex Issue</div>
+                            <div class="text-sm text-gray-400">3+ unique intents in conversation</div>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div class="list-icon bg-yellow-500/20 text-yellow-400">⚠</div>
+                        <div>
+                            <div class="font-medium">Tool Failures</div>
+                            <div class="text-sm text-gray-400">2+ failed tool calls in session</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3>Escalation Summary</h3>
+                <div class="code text-sm">
+{
+  "session_id": "session_1234",
+  "customer": {
+    "email": "user@example.com",
+    "name": "John Doe",
+    "shopify_id": "cust_123"
+  },
+  "issue_type": "REFUND_REQUEST",
+  "message_count": 5,
+  "tool_calls": [
+    { "tool": "get_order", "success": true },
+    { "tool": "refund_order", "success": false }
+  ],
+  "mentioned_orders": ["#12345"],
+  "attempted_resolution": "refund-agent",
+  "conversation_summary": [
+    { "role": "customer", "preview": "I want..." },
+    { "role": "agent", "preview": "I apologize..." }
+  ]
+}
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">11 / 15</div>
+    </div>
+
+    <!-- SLIDE 12: Tracing & Observability -->
+    <div class="slide" id="slide-12">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Tracing & Observability</h2>
+        <div class="grid grid-cols-3 gap-6 flex-1 animate-in delay-1">
+            <div class="card col-span-2">
+                <h3>Timeline Output</h3>
+                <div class="code text-sm" style="height: 320px; overflow-y: auto;">
+============================================================
+SESSION TRACE: session_1707123456_abc123
+============================================================
+
+SUMMARY:
+  Messages: 4
+  Tool Calls: 2 (2 ✓, 0 ✗)
+  Escalated: No
+  Agents: order-tracking-agent
+  Duration: 2340ms
+
+TIMELINE:
+  [09:41:23] MESSAGE: customer - "Where is my order #12345?"
+  [09:41:24] ROUTING: none → order-tracking-agent
+  [09:41:24] TOOL_CALL: shopify_get_customer_orders → ✓
+  [09:41:25] TOOL_CALL: shopify_get_order_details → ✓
+  [09:41:26] MESSAGE: agent - "I found your order #12345..."
+
+============================================================
+                </div>
+            </div>
+            <div>
+                <h3>Event Types</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <div class="w-3 h-3 rounded bg-gray-400"></div>
+                        <span>MESSAGE</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <div class="w-3 h-3 rounded bg-blue-400"></div>
+                        <span>ROUTING</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <div class="w-3 h-3 rounded bg-amber-400"></div>
+                        <span>TOOL_CALL</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <div class="w-3 h-3 rounded bg-red-400"></div>
+                        <span>ESCALATION</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+                        <div class="w-3 h-3 rounded bg-red-600"></div>
+                        <span>ERROR</span>
+                    </div>
+                </div>
+
+                <h3 class="mt-6">Export Formats</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="p-2 bg-gray-800/50 rounded">GET /trace → text</div>
+                    <div class="p-2 bg-gray-800/50 rounded">GET /trace?format=json</div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-number">12 / 15</div>
+    </div>
+
+    <!-- SLIDE 13: Dashboard -->
+    <div class="slide" id="slide-13">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">Dashboard</h2>
+        <div class="grid grid-cols-3 gap-6 flex-1 animate-in delay-1">
+            <div class="card">
+                <h3>Chat View</h3>
+                <div class="bg-gray-900 rounded-lg p-4 h-48">
+                    <div class="flex gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-full bg-gray-700"></div>
+                        <div class="bg-gray-700 rounded-xl px-3 py-2 text-sm">Where's my order?</div>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <div class="bg-indigo-600 rounded-xl px-3 py-2 text-sm">Your order #12345 is...</div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400 mt-2">Real-time conversation display</div>
+            </div>
+
+            <div class="card">
+                <h3>Architecture View</h3>
+                <div class="bg-gray-900 rounded-lg p-4 h-48 flex items-center justify-center">
+                    <svg width="180" height="120" viewBox="0 0 180 120">
+                        <rect x="10" y="10" width="50" height="30" fill="#1e1e2e" stroke="#8b5cf6" rx="4"/>
+                        <rect x="65" y="10" width="50" height="30" fill="#1e1e2e" stroke="#10b981" rx="4"/>
+                        <rect x="120" y="10" width="50" height="30" fill="#1e1e2e" stroke="#f59e0b" rx="4"/>
+                        <rect x="10" y="50" width="50" height="30" fill="#1e1e2e" stroke="#3b82f6" rx="4"/>
+                        <rect x="65" y="50" width="50" height="30" fill="#1e1e2e" stroke="#06b6d4" rx="4"/>
+                        <rect x="120" y="50" width="50" height="30" fill="#1e1e2e" stroke="#ef4444" rx="4"/>
+                    </svg>
+                </div>
+                <div class="text-sm text-gray-400 mt-2">MAS component visualization</div>
+            </div>
+
+            <div class="card">
+                <h3>Errors View</h3>
+                <div class="bg-gray-900 rounded-lg p-4 h-48">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-red-400 text-2xl font-bold">3</span>
+                        <span class="text-gray-500 text-sm">Total Errors</span>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">E2003</span>
+                            <span>2</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">E2004</span>
+                            <span>1</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-green-400 text-xl font-bold">67%</div>
+                    <div class="text-xs text-gray-500">Recovery Rate</div>
+                </div>
+                <div class="text-sm text-gray-400 mt-2">Error tracking & analytics</div>
+            </div>
+        </div>
+        <div class="slide-number">13 / 15</div>
+    </div>
+
+    <!-- SLIDE 14: API Reference -->
+    <div class="slide" id="slide-14">
+        <div class="team-badge">LOGICSTICKS</div>
+        <h2 class="animate-in">API Reference</h2>
+        <div class="flex-1 animate-in delay-1">
+            <div class="table-row table-header">
+                <span>Method</span>
+                <span>Endpoint</span>
+                <span>Description</span>
+            </div>
+            <div class="table-row">
+                <span class="text-green-400">POST</span>
+                <span class="font-mono text-sm">/session/start</span>
+                <span class="text-gray-400">Start new email session</span>
+            </div>
+            <div class="table-row">
+                <span class="text-green-400">POST</span>
+                <span class="font-mono text-sm">/session/:id/message</span>
+                <span class="text-gray-400">Send customer message, get agent response</span>
+            </div>
+            <div class="table-row">
+                <span class="text-blue-400">GET</span>
+                <span class="font-mono text-sm">/session/:id/trace</span>
+                <span class="text-gray-400">Get observable trace timeline</span>
+            </div>
+            <div class="table-row">
+                <span class="text-blue-400">GET</span>
+                <span class="font-mono text-sm">/session/:id/summary</span>
+                <span class="text-gray-400">Get session summary</span>
+            </div>
+            <div class="table-row">
+                <span class="text-blue-400">GET</span>
+                <span class="font-mono text-sm">/sessions</span>
+                <span class="text-gray-400">List all active sessions</span>
+            </div>
+            <div class="table-row">
+                <span class="text-red-400">DELETE</span>
+                <span class="font-mono text-sm">/session/:id</span>
+                <span class="text-gray-400">Delete single session</span>
+            </div>
+            <div class="table-row">
+                <span class="text-green-400">POST</span>
+                <span class="font-mono text-sm">/sessions/clear</span>
+                <span class="text-gray-400">Clear all sessions</span>
+            </div>
+            <div class="table-row">
+                <span class="text-blue-400">GET</span>
+                <span class="font-mono text-sm">/config</span>
+                <span class="text-gray-400">Get MAS configuration</span>
+            </div>
+            <div class="table-row">
+                <span class="text-blue-400">GET</span>
+                <span class="font-mono text-sm">/health</span>
+                <span class="text-gray-400">Health check</span>
+            </div>
+        </div>
+        <div class="slide-number">14 / 15</div>
+    </div>
+
+    <!-- SLIDE 15: Summary -->
+    <div class="slide" id="slide-15">
+        <div class="team-badge">LOGICSTICKS</div>
+        <div class="flex-1 flex flex-col items-center justify-center text-center">
+            <h1 class="animate-in">Lookfor MAS</h1>
+            <p class="subtitle animate-in delay-1">Self-Referential Meta-Automata</p>
+
+            <div class="grid grid-cols-4 gap-6 mt-8 animate-in delay-2">
+                <div class="card p-6">
+                    <div class="text-3xl mb-2">🤖</div>
+                    <div class="font-semibold">7 Agents</div>
+                    <div class="text-sm text-gray-400">Specialized routing</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-3xl mb-2">🔧</div>
+                    <div class="font-semibold">19 Tools</div>
+                    <div class="text-sm text-gray-400">Shopify + Skio</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-3xl mb-2">🛡️</div>
+                    <div class="font-semibold">Resilient</div>
+                    <div class="text-sm text-gray-400">Circuit breaker</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-3xl mb-2">👁️</div>
+                    <div class="font-semibold">Observable</div>
+                    <div class="text-sm text-gray-400">Full tracing</div>
+                </div>
+            </div>
+
+            <div class="mt-12 animate-in delay-3">
+                <div class="text-gray-500 mb-4">逆水行舟，不进则退</div>
+                <div class="text-gray-400 text-sm">Like rowing upstream: no advance is to drop back</div>
+            </div>
+
+            <div class="mt-8 animate-in delay-4">
+                <a href="/dashboard" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-semibold hover:opacity-90 transition">
+                    Launch Dashboard →
+                </a>
+            </div>
+        </div>
+        <div class="slide-number">15 / 15</div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 15;
+
+        function showSlide(n) {
+            if (n < 1) n = totalSlides;
+            if (n > totalSlides) n = 1;
+            currentSlide = n;
+
+            document.querySelectorAll('.slide').forEach((slide, i) => {
+                slide.classList.remove('active');
+                if (i === n - 1) slide.classList.add('active');
+            });
+
+            document.getElementById('progress').style.width = `${(n / totalSlides) * 100}%`;
+        }
+
+        function nextSlide() { showSlide(currentSlide + 1); }
+        function prevSlide() { showSlide(currentSlide - 1); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+            if (e.key === 'Home') showSlide(1);
+            if (e.key === 'End') showSlide(totalSlides);
+        });
+
+        // Touch support
+        let touchStartX = 0;
+        document.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX);
+        document.addEventListener('touchend', e => {
+            const diff = touchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                diff > 0 ? nextSlide() : prevSlide();
+            }
+        });
+    </script>
+</body>
+</html>
